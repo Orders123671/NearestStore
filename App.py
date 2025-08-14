@@ -19,9 +19,22 @@ def init_db():
                 address TEXT NOT NULL,
                 latitude REAL NOT NULL,
                 longitude REAL NOT NULL,
+                contact_number TEXT,
+                branch_supervisor TEXT,  -- New column for branch supervisor
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Add columns if they don't exist (for existing databases)
+        try:
+            cursor.execute("ALTER TABLE stores ADD COLUMN contact_number TEXT")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e):
+                st.warning(f"Could not add 'contact_number' column (may already exist): {e}")
+        try:
+            cursor.execute("ALTER TABLE stores ADD COLUMN branch_supervisor TEXT")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e):
+                st.warning(f"Could not add 'branch_supervisor' column (may already exist): {e}")
         conn.commit()
 
 # Initialize the database when the app starts
@@ -81,13 +94,13 @@ def get_coordinates_from_address(address, api_key_to_use):
         return None, None
 
 # --- SQLite Operations for Stores ---
-def add_store_to_db(name, address, latitude, longitude):
+def add_store_to_db(name, address, latitude, longitude, contact_number, branch_supervisor):
     """Adds a new store to SQLite database."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO stores (name, address, latitude, longitude) VALUES (?, ?, ?, ?)",
-                           (name, address, latitude, longitude))
+            cursor.execute("INSERT INTO stores (name, address, latitude, longitude, contact_number, branch_supervisor) VALUES (?, ?, ?, ?, ?, ?)",
+                           (name, address, latitude, longitude, contact_number, branch_supervisor))
             conn.commit()
         st.success(f"Store '{name}' added successfully!")
         return True
@@ -95,16 +108,29 @@ def add_store_to_db(name, address, latitude, longitude):
         st.error(f"Error adding store to database: {e}")
         return False
 
+def delete_store_from_db(store_id):
+    """Deletes a store from SQLite database by its ID."""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM stores WHERE id = ?", (store_id,))
+            conn.commit()
+        st.success(f"Store with ID {store_id} deleted successfully!")
+        return True
+    except Exception as e:
+        st.error(f"Error deleting store from database: {e}")
+        return False
+
 # Use Streamlit's session state to store stores_df for reactivity
 if 'stores_df' not in st.session_state:
-    st.session_state.stores_df = pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'timestamp'])
+    st.session_state.stores_df = pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'timestamp'])
 
 def fetch_stores_from_db():
     """Fetches all stores from SQLite and updates st.session_state.stores_df."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, name, address, latitude, longitude, timestamp FROM stores")
+            cursor.execute("SELECT id, name, address, latitude, longitude, contact_number, branch_supervisor, timestamp FROM stores")
             rows = cursor.fetchall()
             # Get column names from cursor description
             cols = [description[0] for description in cursor.description]
@@ -171,6 +197,20 @@ st.markdown(
     .stButton>button:hover {
         background-color: #45a049;
     }
+    .delete-button {
+        background-color: #dc3545; /* Red */
+        color: white;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 0.9em;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+    }
+    .delete-button:hover {
+        background-color: #c82333;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -204,17 +244,14 @@ if page == "Find Nearest Store":
         if st.button("Find Nearest Store"):
             user_lat, user_lon = None, None
             if str(user_address_input).strip():
-                st.info(f"Geocoding address: '{user_address_input}'...")
-                # Pass API key loaded from secrets
-                user_lat, user_lon = get_coordinates_from_address(user_address_input, google_api_key)
+                with st.spinner("Searching for the nearest store..."):
+                    user_lat, user_lon = get_coordinates_from_address(user_address_input, google_api_key)
                 if user_lat is None or user_lon is None:
                     st.error("Could not get coordinates from the provided address. Please try another address or check your API key.")
             else:
                 st.error("Please provide an address to find the nearest store.")
 
             if user_lat is not None and user_lon is not None:
-                st.subheader("Searching for the nearest store...")
-
                 nearest_store = None
                 min_distance = float('inf')
 
@@ -233,6 +270,22 @@ if page == "Find Nearest Store":
                         st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                         st.markdown(f"<p class='store-name'>Nearest Store: {nearest_store['name']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='distance-text'>Distance: {min_distance:.2f} km</p>", unsafe_allow_html=True)
+
+                        # Display contact number
+                        contact_to_display = nearest_store.get('contact_number')
+                        if pd.notnull(contact_to_display) and str(contact_to_display).strip():
+                            st.markdown(f"<p class='distance-text'>Contact: {str(contact_to_display).strip()}</p>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<p class='distance-text'>Contact: Not Available</p>", unsafe_allow_html=True)
+
+                        # Display branch supervisor
+                        supervisor_to_display = nearest_store.get('branch_supervisor')
+                        if pd.notnull(supervisor_to_display) and str(supervisor_to_display).strip():
+                            st.markdown(f"<p class='distance-text'>Supervisor: {str(supervisor_to_display).strip()}</p>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<p class='distance-text'>Supervisor: Not Available</p>", unsafe_allow_html=True)
+
+
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.warning("No stores found in the database to compare with. Please add some stores first.")
@@ -255,7 +308,7 @@ if page == "Find Nearest Store":
                     # Ensure latitude and longitude columns exist before assigning values
                     if not stores_df_for_map.empty and ('latitude' in stores_df_for_map.columns and 'longitude' in stores_df_for_map.columns):
                         stores_df_for_map['size'] = 50 # Smaller marker for stores
-                        # This is the key fix: assign a list of lists, one inner list for each row
+                        # Assign a list of lists, one inner list for each row
                         stores_df_for_map['color'] = [[0, 0, 255]] * len(stores_df_for_map)
                     else:
                         # If DataFrame is empty or missing columns, create an empty one for concatenation
@@ -288,6 +341,8 @@ elif page == "Add New Store":
 
         new_store_name = st.text_input("Store Name")
         new_store_address = st.text_input("Store Address (e.g., '123 Main St, Anytown')", value="")
+        new_store_contact = st.text_input("Store Contact Number (optional)", value="") # New input field
+        new_store_supervisor = st.text_input("Branch Supervisor Name (optional)", value="") # New input field for supervisor
 
         if st.button("Add Store to Database"):
             if not str(new_store_name).strip():
@@ -299,7 +354,8 @@ elif page == "Add New Store":
                 # Pass API key loaded from secrets
                 store_lat, store_lon = get_coordinates_from_address(new_store_address, google_api_key)
                 if store_lat is not None and store_lon is not None:
-                    if add_store_to_db(new_store_name, new_store_address, store_lat, store_lon):
+                    # Pass the new contact_number and branch_supervisor to the add function
+                    if add_store_to_db(new_store_name, new_store_address, store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip()):
                         # Refresh stores data after adding a new one
                         fetch_stores_from_db()
                         st.rerun() # Rerun to update the map and list immediately
@@ -310,9 +366,55 @@ elif page == "Add New Store":
 
         st.markdown("---")
 
-        # --- Display All Saved Stores (always visible on Add New Store page) ---
+        # --- Display All Saved Stores with Delete Buttons ---
         st.markdown("<h3>All Saved Stores</h3>", unsafe_allow_html=True)
         if not st.session_state.stores_df.empty:
-            st.dataframe(st.session_state.stores_df[['name', 'address', 'latitude', 'longitude']])
+            # Create a copy to avoid SettingWithCopyWarning if we modify it
+            display_df = st.session_state.stores_df[['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor']].copy()
+
+            # Adjust column widths for new column
+            cols = st.columns([0.5, 1.5, 2.5, 1, 1, 1.2, 1.5, 0.7]) # Adjusted widths: added one more slot
+            with cols[0]:
+                st.write("ID")
+            with cols[1]:
+                st.write("Name")
+            with cols[2]:
+                st.write("Address")
+            with cols[3]:
+                st.write("Latitude")
+            with cols[4]:
+                st.write("Longitude")
+            with cols[5]:
+                st.write("Contact")
+            with cols[6]:
+                st.write("Supervisor") # Header for new column
+            with cols[7]:
+                st.write("Delete") # Header for delete button column
+
+            for index, row in display_df.iterrows():
+                with cols[0]:
+                    st.write(row['id'])
+                with cols[1]:
+                    st.write(row['name'])
+                with cols[2]:
+                    st.write(row['address'])
+                with cols[3]:
+                    st.write(f"{row['latitude']:.4f}")
+                with cols[4]:
+                    st.write(f"{row['longitude']:.4f}")
+                with cols[5]:
+                    contact_val = row['contact_number'] if pd.notnull(row['contact_number']) and str(row['contact_number']).strip() else "N/A"
+                    st.write(contact_val)
+                with cols[6]: # New column for supervisor
+                    supervisor_val = row['branch_supervisor'] if pd.notnull(row['branch_supervisor']) and str(row['branch_supervisor']).strip() else "N/A"
+                    st.write(supervisor_val)
+                with cols[7]:
+                    if st.button("🗑️", key=f"delete_{row['id']}", help=f"Delete {row['name']}",
+                                 use_container_width=True,
+                                 ):
+                        if delete_store_from_db(row['id']):
+                            fetch_stores_from_db() # Refresh data after deletion
+                            st.rerun() # Rerun the app to update the display
+
         else:
             st.info("No stores currently in the database.")
