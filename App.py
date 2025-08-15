@@ -475,6 +475,7 @@ if page == "Find Nearest Store":
                         st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                         st.markdown(f"<p class='store-name'>Nearest Store: {nearest_store['name']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='distance-text'>Distance: {min_distance:.2f} km</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='distance-text'>Address: {nearest_store['address']}</p>", unsafe_allow_html=True) # Added store address here
 
                         # Display contact number
                         contact_to_display = nearest_store.get('contact_number')
