@@ -22,6 +22,7 @@ def init_db():
                 contact_number TEXT,
                 branch_supervisor TEXT,
                 store_status TEXT DEFAULT 'Operational', -- New column for store status with a default
+                store_hours TEXT, -- New column for store hours
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -42,6 +43,11 @@ def init_db():
         except sqlite3.OperationalError as e:
             if "duplicate column name" not in str(e):
                 st.warning(f"Could not add 'store_status' column (may already exist): {e}")
+        try:
+            cursor.execute("ALTER TABLE stores ADD COLUMN store_hours TEXT")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e):
+                st.warning(f"Could not add 'store_hours' column (may already exist): {e}")
         conn.commit()
 
 # Initialize the database when the app starts
@@ -101,13 +107,13 @@ def get_coordinates_from_address(address, api_key_to_use):
         return None, None
 
 # --- SQLite Operations for Stores ---
-def add_store_to_db(name, address, latitude, longitude, contact_number, branch_supervisor, store_status):
+def add_store_to_db(name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours):
     """Adds a new store to SQLite database."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO stores (name, address, latitude, longitude, contact_number, branch_supervisor, store_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                           (name, address, latitude, longitude, contact_number, branch_supervisor, store_status))
+            cursor.execute("INSERT INTO stores (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                           (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours))
             conn.commit()
         st.success(f"Store '{name}' added successfully!")
         return True
@@ -115,7 +121,7 @@ def add_store_to_db(name, address, latitude, longitude, contact_number, branch_s
         st.error(f"Error adding store to database: {e}")
         return False
 
-def update_store_in_db(store_id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status):
+def update_store_in_db(store_id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours):
     """Updates an existing store in SQLite database."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
@@ -128,9 +134,10 @@ def update_store_in_db(store_id, name, address, latitude, longitude, contact_num
                     longitude = ?,
                     contact_number = ?,
                     branch_supervisor = ?,
-                    store_status = ?
+                    store_status = ?,
+                    store_hours = ?
                 WHERE id = ?
-            """, (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_id))
+            """, (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_id))
             conn.commit()
         st.success(f"Store '{name}' (ID: {store_id}) updated successfully!")
         return True
@@ -154,7 +161,7 @@ def delete_store_from_db(store_id):
 
 # Use Streamlit's session state to store stores_df for reactivity
 if 'stores_df' not in st.session_state:
-    st.session_state.stores_df = pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'timestamp'])
+    st.session_state.stores_df = pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours', 'timestamp'])
 if 'editing_store_id' not in st.session_state:
     st.session_state.editing_store_id = None # Store ID of the store currently being edited
 if 'editing_store_details' not in st.session_state:
@@ -165,7 +172,7 @@ def fetch_stores_from_db():
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, timestamp FROM stores")
+            cursor.execute("SELECT id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, timestamp FROM stores")
             rows = cursor.fetchall()
             # Get column names from cursor description
             cols = [description[0] for description in cursor.description]
@@ -331,6 +338,13 @@ if page == "Find Nearest Store":
                         else:
                             st.markdown(f"<p class='distance-text'>Status: Not Available</p>", unsafe_allow_html=True)
 
+                        # Display store hours
+                        hours_to_display = nearest_store.get('store_hours')
+                        if pd.notnull(hours_to_display) and str(hours_to_display).strip():
+                            st.markdown(f"<p class='distance-text'>Hours: {str(hours_to_display).strip()}</p>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<p class='distance-text'>Hours: Not Available</p>", unsafe_allow_html=True)
+
 
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
@@ -396,6 +410,7 @@ elif page == "Add/Edit Store":
 
             store_status_options = ["", "Operational", "Temporarily Closed", "Permanently Closed"]
             new_store_status = st.selectbox("Store Status", options=store_status_options, index=0, key="add_status")
+            new_store_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", value="", key="add_hours") # New input field
 
 
             if st.button("Add Store to Database", key="add_button"):
@@ -407,7 +422,8 @@ elif page == "Add/Edit Store":
                     st.info(f"Geocoding new store address: '{new_store_address}'...")
                     store_lat, store_lon = get_coordinates_from_address(new_store_address, google_api_key)
                     if store_lat is not None and store_lon is not None:
-                        if add_store_to_db(new_store_name.strip(), new_store_address.strip(), store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip(), new_store_status):
+                        # Pass the new contact_number, branch_supervisor, store_status, and store_hours to the add function
+                        if add_store_to_db(new_store_name.strip(), new_store_address.strip(), store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip(), new_store_status, new_store_hours.strip()):
                             fetch_stores_from_db()
                             st.rerun()
                     else:
@@ -446,6 +462,7 @@ elif page == "Add/Edit Store":
             current_contact = st.session_state.editing_store_details.get('contact_number', '')
             current_supervisor = st.session_state.editing_store_details.get('branch_supervisor', '')
             current_status = st.session_state.editing_store_details.get('store_status', '')
+            current_hours = st.session_state.editing_store_details.get('store_hours', '') # New: current hours
 
             edited_name = st.text_input("Store Name", value=current_name, key="edit_name")
             edited_address = st.text_input("Store Address", value=current_address, key="edit_address")
@@ -456,6 +473,7 @@ elif page == "Add/Edit Store":
             # Find the correct index for the current status, default to 0 (empty) if not found
             current_status_index = store_status_options_edit.index(current_status) if current_status in store_status_options_edit else 0
             edited_status = st.selectbox("Store Status", options=store_status_options_edit, index=current_status_index, key="edit_status")
+            edited_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", value=current_hours, key="edit_hours") # New: edited hours
 
             if st.button("Update Store Details", key="update_button"):
                 if st.session_state.editing_store_id is None:
@@ -489,7 +507,8 @@ elif page == "Add/Edit Store":
                             new_lon,
                             edited_contact.strip(),
                             edited_supervisor.strip(),
-                            edited_status
+                            edited_status,
+                            edited_hours.strip() # Pass the new hours
                         ):
                             # Clear editing state after successful update
                             st.session_state.editing_store_id = None
@@ -505,10 +524,11 @@ elif page == "Add/Edit Store":
         # --- Display All Saved Stores with Delete Buttons ---
         st.markdown("<h3>All Saved Stores</h3>", unsafe_allow_html=True)
         if not st.session_state.stores_df.empty:
-            display_df = st.session_state.stores_df[['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status']].copy()
+            display_df = st.session_state.stores_df[['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours']].copy()
 
             # Adjust column widths for new column
-            cols = st.columns([0.4, 1.2, 2.0, 1.0, 1.0, 1.2, 1.4, 1.2, 0.7]) # Added one more slot for status
+            # (ID, Name, Address, Lat, Lon, Contact, Supervisor, Status, Hours, Delete)
+            cols = st.columns([0.4, 1.2, 2.0, 0.9, 0.9, 1.2, 1.4, 1.1, 1.5, 0.7])
             with cols[0]:
                 st.write("ID")
             with cols[1]:
@@ -524,8 +544,10 @@ elif page == "Add/Edit Store":
             with cols[6]:
                 st.write("Supervisor")
             with cols[7]:
-                st.write("Status") # Header for new column
+                st.write("Status")
             with cols[8]:
+                st.write("Hours") # Header for new column
+            with cols[9]:
                 st.write("Delete")
 
             for index, row in display_df.iterrows():
@@ -545,10 +567,13 @@ elif page == "Add/Edit Store":
                 with cols[6]:
                     supervisor_val = row['branch_supervisor'] if pd.notnull(row['branch_supervisor']) and str(row['branch_supervisor']).strip() else "N/A"
                     st.write(supervisor_val)
-                with cols[7]: # New column for status
+                with cols[7]:
                     status_val = row['store_status'] if pd.notnull(row['store_status']) and str(row['store_status']).strip() else "N/A"
                     st.write(status_val)
-                with cols[8]:
+                with cols[8]: # New column for hours
+                    hours_val = row['store_hours'] if pd.notnull(row['store_hours']) and str(row['store_hours']).strip() else "N/A"
+                    st.write(hours_val)
+                with cols[9]:
                     if st.button("🗑️", key=f"delete_{row['id']}", help=f"Delete {row['name']}",
                                  use_container_width=True,
                                  ):
