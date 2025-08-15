@@ -123,9 +123,30 @@ def add_store_to_db(name, address, latitude, longitude, contact_number, branch_s
 
 def update_store_in_db(store_id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours):
     """Updates an existing store in SQLite database."""
+    print(f"DEBUG: update_store_in_db called for ID: {store_id} (Type: {type(store_id)})")
+    print(f"DEBUG: Name: '{name}', Address: '{address}'")
+    print(f"DEBUG: Lat: {latitude}, Lon: {longitude}")
+    print(f"DEBUG: Contact: '{contact_number}', Supervisor: '{branch_supervisor}'")
+    print(f"DEBUG: Status: '{store_status}', Hours: '{store_hours}'")
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
+
+            # Ensure store_id is an integer for the query
+            store_id_int = int(store_id)
+
+            # --- DEBUG: Verify initial DB content before update ---
+            cursor.execute("SELECT id, name, address, contact_number, branch_supervisor, store_status, store_hours FROM stores WHERE id = ?", (store_id_int,))
+            initial_row = cursor.fetchone()
+            if initial_row:
+                initial_data = dict(zip(['id', 'name', 'address', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours'], initial_row))
+                print(f"DEBUG: Data in DB BEFORE update (ID {store_id_int}): {initial_data}")
+            else:
+                print(f"DEBUG: Store with ID {store_id_int} NOT FOUND BEFORE update. This indicates a sync issue or DB file was reset.")
+                st.error(f"Store with ID {store_id_int} not found in database for update. Please add it again or refresh the page and try editing.")
+                return False # Exit if store not found
+
+
             cursor.execute("""
                 UPDATE stores SET
                     name = ?,
@@ -137,12 +158,35 @@ def update_store_in_db(store_id, name, address, latitude, longitude, contact_num
                     store_status = ?,
                     store_hours = ?
                 WHERE id = ?
-            """, (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_id))
-            conn.commit()
-        st.success(f"Store '{name}' (ID: {store_id}) updated successfully!")
-        return True
+            """, (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_id_int))
+
+            # Check how many rows were affected by the UPDATE
+            rows_affected = cursor.rowcount
+            print(f"DEBUG: Rows affected by UPDATE for ID {store_id_int}: {rows_affected}")
+
+            conn.commit() # Commit the transaction here
+
+            # --- DEBUG: Verify immediate DB content after commit ---
+            cursor.execute("SELECT id, name, address, contact_number, branch_supervisor, store_status, store_hours FROM stores WHERE id = ?", (store_id_int,))
+            updated_row = cursor.fetchone()
+            if updated_row:
+                cols_for_debug = ['id', 'name', 'address', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours']
+                updated_data = dict(zip(cols_for_debug, updated_row))
+                print(f"DEBUG: Data in DB AFTER update (ID {store_id_int}): {updated_data}")
+            else:
+                print(f"DEBUG: Store with ID {store_id_int} NOT FOUND AFTER update verification (this is unexpected if rows_affected > 0).")
+            # --- End DEBUG ---
+
+        if rows_affected > 0:
+            st.success(f"Store '{name}' (ID: {store_id_int}) updated successfully!")
+            return True
+        else:
+            # This case means the UPDATE statement executed, but found no matching row or no actual change.
+            st.warning(f"Update completed, but no changes were applied to store '{name}' (ID: {store_id_int}). Data might be identical or store not found.")
+            return False
     except Exception as e:
         st.error(f"Error updating store in database: {e}")
+        print(f"ERROR: Exception during update_store_in_db: {e}")
         return False
 
 
@@ -186,79 +230,194 @@ def fetch_stores_from_db():
 fetch_stores_from_db()
 
 # --- Streamlit App Layout ---
-st.set_page_config(layout="wide", page_title="Nearest Store Finder", page_icon="📍")
+st.set_page_config(layout="wide", page_title="Katrina store finder", page_icon="📍")
 
 st.markdown(
     """
     <style>
+    /* General body styling for a clean look */
+    body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f8f9fa; /* Light gray background */
+        color: #343a40; /* Dark gray text */
+    }
+
+    /* Main Header Styling */
     .main-header {
-        font-size: 2.5em;
-        color: #4CAF50; /* Green */
+        font-size: 2.8em;
+        color: #28a745; /* Vibrant green */
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        padding-top: 20px;
     }
+
+    /* Subheader Styling */
     .subheader {
-        font-size: 1.2em;
-        color: #333;
+        font-size: 1.3em;
+        color: #495057; /* Slightly darker gray for subheader */
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 40px;
     }
+
+    /* Input Section (Forms) Styling */
     .input-section {
-        background-color: #f0f2f6;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 30px;
+        background-color: #ffffff; /* White background for input sections */
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 40px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* Soft shadow for depth */
+        border: 1px solid #e9ecef; /* Light border */
     }
+
+    /* Headers within sections */
+    h3 {
+        color: #007bff; /* Blue for section headers */
+        margin-bottom: 20px;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+    }
+
+    /* Result Card Styling */
     .result-card {
-        background-color: #e6ffe6; /* Light green */
-        border-left: 5px solid #4CAF50;
-        padding: 20px;
-        border-radius: 10px;
-        margin-top: 20px;
+        background-color: #d4edda; /* Light green background for success/result */
+        border-left: 6px solid #28a745; /* Stronger green border */
+        padding: 25px;
+        border-radius: 12px;
+        margin-top: 30px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
+
+    /* Store Name in Result Card */
     .store-name {
-        font-size: 1.5em;
+        font-size: 1.8em;
         font-weight: bold;
-        color: #2e7d32; /* Darker green */
+        color: #155724; /* Darker green for emphasis */
+        margin-bottom: 10px;
     }
+
+    /* Distance and other text in Result Card */
     .distance-text {
         font-size: 1.1em;
-        color: #555;
+        color: #333;
+        line-height: 1.6;
     }
+
+    /* Streamlit Button Styling */
     .stButton>button {
-        background-color: #4CAF50;
+        background-color: #007bff; /* Primary blue button */
         color: white;
         border-radius: 8px;
-        padding: 10px 20px;
+        padding: 12px 25px;
         font-size: 1.1em;
         border: none;
         cursor: pointer;
-        transition: background-color 0.3s ease;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); /* Deeper shadow */
+        font-weight: bold;
     }
     .stButton>button:hover {
-        background-color: #45a049;
+        background-color: #0056b3; /* Darker blue on hover */
+        transform: translateY(-2px); /* Slight lift effect */
+        box-shadow: 0 6px 15px rgba(0,0,0,0.3);
     }
+
+    /* Delete Button Specific Styling */
     .delete-button {
         background-color: #dc3545; /* Red */
         color: white;
-        border-radius: 8px;
-        padding: 5px 10px;
-        font-size: 0.9em;
+        border-radius: 6px;
+        padding: 8px 15px;
+        font-size: 0.95em;
         border: none;
         cursor: pointer;
-        transition: background-color 0.3s ease;
-        box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
     .delete-button:hover {
-        background-color: #c82333;
+        background-color: #c82333; /* Darker red on hover */
+        transform: translateY(-1px);
+    }
+
+    /* Adjust Streamlit specific elements for better fit */
+    .stTextInput>div>div>input, .stSelectbox>div>div>select {
+        border-radius: 8px;
+        border: 1px solid #ced4da; /* Light gray border */
+        padding: 10px;
+        font-size: 1em;
+    }
+    .stTextInput>div>div>input:focus, .stSelectbox>div>div>select:focus {
+        border-color: #007bff; /* Blue border on focus */
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    /* Info and Warning messages */
+    .stAlert {
+        border-radius: 8px;
+        padding: 15px;
+    }
+    .stAlert.info {
+        background-color: #e2f2ff; /* Light blue for info */
+        border-left: 5px solid #007bff;
+    }
+    .stAlert.warning {
+        background-color: #fff3cd; /* Light yellow for warning */
+        border-left: 5px solid #ffc107;
+    }
+    .stAlert.error {
+        background-color: #f8d7da; /* Light red for error */
+        border-left: 5px solid #dc3545;
+    }
+
+    /* Sidebar Navigation */
+    .stRadio > label {
+        color: #007bff; /* Blue for radio button labels */
+        font-weight: bold;
+    }
+    .stRadio div[role="radiogroup"] {
+        background-color: #e9ecef; /* Light gray for radio group background */
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .stRadio div[role="radiogroup"] label {
+        margin: 5px 0;
+        padding: 8px 12px;
+        border-radius: 6px;
+        transition: background-color 0.2s ease;
+    }
+    .stRadio div[role="radiogroup"] label:hover {
+        background-color: #dee2e6; /* Darker gray on hover */
+    }
+    .stRadio div[role="radiogroup"] label[data-baseweb="radio"] div {
+        color: #343a40; /* Ensure text color is readable */
+    }
+
+    /* Streamlit's "All Saved Stores" table headers */
+    div[data-testid="stDataFrame"] .header-row {
+        background-color: #007bff; /* Blue header for table */
+        color: white;
+        font-weight: bold;
+    }
+    div[data-testid="stDataFrame"] .header-cell {
+        padding: 10px 5px;
+        border-bottom: 2px solid #0056b3;
+    }
+    div[data-testid="stDataFrame"] .data-row:nth-child(odd) {
+        background-color: #f8f9fa; /* Light gray alternating rows */
+    }
+    div[data-testid="stDataFrame"] .data-row:nth-child(even) {
+        background-color: #ffffff; /* White alternating rows */
+    }
+    div[data-testid="stDataFrame"] .data-cell {
+        padding: 8px 5px;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.markdown("<h1 class='main-header'>📍 Nearest Store Finder</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-header'>📍 Katrina store finder</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subheader'>Find the closest store or add new store locations.</p>", unsafe_allow_html=True)
 
 # --- Navigation ---
@@ -410,7 +569,7 @@ elif page == "Add/Edit Store":
 
             store_status_options = ["", "Operational", "Temporarily Closed", "Permanently Closed"]
             new_store_status = st.selectbox("Store Status", options=store_status_options, index=0, key="add_status")
-            new_store_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", value="", key="add_hours") # New input field
+            new_store_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", value="", key="add_hours")
 
 
             if st.button("Add Store to Database", key="add_button"):
@@ -422,7 +581,6 @@ elif page == "Add/Edit Store":
                     st.info(f"Geocoding new store address: '{new_store_address}'...")
                     store_lat, store_lon = get_coordinates_from_address(new_store_address, google_api_key)
                     if store_lat is not None and store_lon is not None:
-                        # Pass the new contact_number, branch_supervisor, store_status, and store_hours to the add function
                         if add_store_to_db(new_store_name.strip(), new_store_address.strip(), store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip(), new_store_status, new_store_hours.strip()):
                             fetch_stores_from_db()
                             st.rerun()
@@ -445,11 +603,18 @@ elif page == "Add/Edit Store":
 
             # Populate editing state if a store is selected
             if selected_store_name_for_edit and selected_store_name_for_edit != "":
-                selected_store_row = st.session_state.stores_df[
+                selected_store_row_series = st.session_state.stores_df[
                     st.session_state.stores_df['name'] == selected_store_name_for_edit
-                ].iloc[0]
-                st.session_state.editing_store_id = selected_store_row['id']
-                st.session_state.editing_store_details = selected_store_row.to_dict()
+                ]
+                if not selected_store_row_series.empty:
+                    selected_store_row = selected_store_row_series.iloc[0]
+                    st.session_state.editing_store_id = selected_store_row['id']
+                    st.session_state.editing_store_details = selected_store_row.to_dict()
+                    print(f"DEBUG: Selected store for edit (from DataFrame): ID={st.session_state.editing_store_id}, Details={st.session_state.editing_store_details}")
+                else:
+                    st.warning(f"Selected store '{selected_store_name_for_edit}' not found in current data. Please try again.")
+                    st.session_state.editing_store_id = None
+                    st.session_state.editing_store_details = {}
             else:
                 # Clear editing state if no store is selected or placeholder is chosen
                 st.session_state.editing_store_id = None
@@ -462,7 +627,7 @@ elif page == "Add/Edit Store":
             current_contact = st.session_state.editing_store_details.get('contact_number', '')
             current_supervisor = st.session_state.editing_store_details.get('branch_supervisor', '')
             current_status = st.session_state.editing_store_details.get('store_status', '')
-            current_hours = st.session_state.editing_store_details.get('store_hours', '') # New: current hours
+            current_hours = st.session_state.editing_store_details.get('store_hours', '')
 
             edited_name = st.text_input("Store Name", value=current_name, key="edit_name")
             edited_address = st.text_input("Store Address", value=current_address, key="edit_address")
@@ -473,7 +638,7 @@ elif page == "Add/Edit Store":
             # Find the correct index for the current status, default to 0 (empty) if not found
             current_status_index = store_status_options_edit.index(current_status) if current_status in store_status_options_edit else 0
             edited_status = st.selectbox("Store Status", options=store_status_options_edit, index=current_status_index, key="edit_status")
-            edited_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", value=current_hours, key="edit_hours") # New: edited hours
+            edited_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", value=current_hours, key="edit_hours")
 
             if st.button("Update Store Details", key="update_button"):
                 if st.session_state.editing_store_id is None:
@@ -483,20 +648,20 @@ elif page == "Add/Edit Store":
                 elif not str(edited_address).strip():
                     st.error("Store address cannot be empty.")
                 else:
-                    new_lat, new_lon = current_address, current_address # Initialize with current for comparison
+                    # Initialize new_lat, new_lon with the currently selected store's numerical coordinates
+                    new_lat = st.session_state.editing_store_details.get('latitude')
+                    new_lon = st.session_state.editing_store_details.get('longitude')
 
                     # Check if address changed, then re-geocode
                     if edited_address.strip() != current_address.strip():
                         with st.spinner(f"Geocoding updated address: '{edited_address}'..."):
-                            new_lat, new_lon = get_coordinates_from_address(edited_address, google_api_key)
-                        if new_lat is None or new_lon is None:
+                            temp_lat, temp_lon = get_coordinates_from_address(edited_address, google_api_key)
+                        if temp_lat is None or temp_lon is None:
                             st.error("Could not geocode the updated address. Please try again.")
-                            st.stop() # Stop execution if geocoding fails
-                    else:
-                        # If address didn't change, retain existing lat/lon
-                        new_lat = st.session_state.editing_store_details.get('latitude')
-                        new_lon = st.session_state.editing_store_details.get('longitude')
-
+                            st.stop()
+                        else:
+                            new_lat, new_lon = temp_lat, temp_lon
+                    # Else (address did not change), new_lat and new_lon already hold the correct current numerical values from initialization
 
                     if new_lat is not None and new_lon is not None:
                         if update_store_in_db(
@@ -508,7 +673,7 @@ elif page == "Add/Edit Store":
                             edited_contact.strip(),
                             edited_supervisor.strip(),
                             edited_status,
-                            edited_hours.strip() # Pass the new hours
+                            edited_hours.strip()
                         ):
                             # Clear editing state after successful update
                             st.session_state.editing_store_id = None
@@ -530,26 +695,27 @@ elif page == "Add/Edit Store":
             # (ID, Name, Address, Lat, Lon, Contact, Supervisor, Status, Hours, Delete)
             cols = st.columns([0.4, 1.2, 2.0, 0.9, 0.9, 1.2, 1.4, 1.1, 1.5, 0.7])
             with cols[0]:
-                st.write("ID")
+                st.write("**ID**")
             with cols[1]:
-                st.write("Name")
+                st.write("**Name**")
             with cols[2]:
-                st.write("Address")
+                st.write("**Address**")
             with cols[3]:
-                st.write("Latitude")
+                st.write("**Latitude**")
             with cols[4]:
-                st.write("Longitude")
+                st.write("**Longitude**")
             with cols[5]:
-                st.write("Contact")
+                st.write("**Contact**")
             with cols[6]:
-                st.write("Supervisor")
+                st.write("**Supervisor**")
             with cols[7]:
-                st.write("Status")
+                st.write("**Status**")
             with cols[8]:
-                st.write("Hours") # Header for new column
+                st.write("**Hours**") # Header for new column
             with cols[9]:
-                st.write("Delete")
+                st.write("**Delete**")
 
+            # The loop for displaying data rows should be here:
             for index, row in display_df.iterrows():
                 with cols[0]:
                     st.write(row['id'])
