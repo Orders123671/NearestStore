@@ -563,30 +563,34 @@ elif page == "Add/Edit Store":
             st.markdown("<div class='input-section'>", unsafe_allow_html=True)
             st.markdown("<h3>Add New Store Location</h3>", unsafe_allow_html=True)
 
-            new_store_name = st.text_input("Store Name", value="", key="add_name")
-            new_store_address = st.text_input("Store Address (e.g., 'Burj Khalifa, Dubai')", value="", key="add_address")
-            new_store_contact = st.text_input("Store Contact Number (optional)", value="", key="add_contact")
-            new_store_supervisor = st.text_input("Branch Supervisor Name (optional)", value="", key="add_supervisor")
+            # Using st.form with clear_on_submit=True for automatic clearing
+            with st.form("add_store_form", clear_on_submit=True):
+                new_store_name = st.text_input("Store Name", key="add_name_form") # Unique key for form input
+                new_store_address = st.text_input("Store Address (e.g., 'Burj Khalifa, Dubai')", key="add_address_form")
+                new_store_contact = st.text_input("Store Contact Number (optional)", key="add_contact_form")
+                new_store_supervisor = st.text_input("Branch Supervisor Name (optional)", key="add_supervisor_form")
 
-            store_status_options = ["", "Operational", "Temporarily Closed", "Permanently Closed"]
-            new_store_status = st.selectbox("Store Status", options=store_status_options, index=0, key="add_status")
-            new_store_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", value="", key="add_hours")
+                store_status_options = ["", "Operational", "Temporarily Closed", "Permanently Closed"]
+                new_store_status = st.selectbox("Store Status", options=store_status_options, key="add_status_form")
+                new_store_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')", key="add_hours_form")
 
+                add_button_submitted = st.form_submit_button("Add Store to Database")
 
-            if st.button("Add Store to Database", key="add_button"):
-                if not str(new_store_name).strip():
-                    st.error("Please enter a name for the new store.")
-                elif not str(new_store_address).strip():
-                    st.error("Please enter an address for the new store.")
-                else:
-                    st.info(f"Geocoding new store address: '{new_store_address}'...")
-                    store_lat, store_lon = get_coordinates_from_address(new_store_address, google_api_key)
-                    if store_lat is not None and store_lon is not None:
-                        if add_store_to_db(new_store_name.strip(), new_store_address.strip(), store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip(), new_store_status, new_store_hours.strip()):
-                            fetch_stores_from_db()
-                            st.rerun()
+                if add_button_submitted:
+                    if not str(new_store_name).strip():
+                        st.error("Please enter a name for the new store.")
+                    elif not str(new_store_address).strip():
+                        st.error("Please enter an address for the new store.")
                     else:
-                        st.error("Could not get coordinates for the new store. Please check the address and ensure your API key is correctly configured.")
+                        st.info(f"Geocoding new store address: '{new_store_address}'...")
+                        store_lat, store_lon = get_coordinates_from_address(new_store_address, google_api_key)
+                        if store_lat is not None and store_lon is not None:
+                            if add_store_to_db(new_store_name.strip(), new_store_address.strip(), store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip(), new_store_status, new_store_hours.strip()):
+                                fetch_stores_from_db() # Refresh data after add
+                                # The form's clear_on_submit=True handles clearing inputs
+                        else:
+                            st.error("Could not get coordinates for the new store. Please check the address and ensure your API key is correctly configured.")
+                # No st.rerun() here explicitly, as form submission implicitly reruns the app.
 
             st.markdown("</div>", unsafe_allow_html=True)
 
