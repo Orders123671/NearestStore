@@ -174,7 +174,6 @@ if 'editing_store_id' not in st.session_state:
     st.session_state.editing_store_id = None
 if 'editing_store_details' not in st.session_state:
     st.session_state.editing_store_details = {}
-# No delete_confirm_modal_active needed anymore as the modal is removed.
 if 'store_id_to_confirm_delete' not in st.session_state:
     st.session_state.store_id_to_confirm_delete = None
 if 'store_name_to_confirm_delete' not in st.session_state:
@@ -196,8 +195,8 @@ def fetch_stores_from_db_local():
 st.set_page_config(
     layout="wide",
     page_title="Katrina Knowledge Base Tools",
-    page_icon="📍",
-    initial_sidebar_state="collapsed"
+    page_icon="�",
+    initial_sidebar_state="collapsed" # Keep this collapsed to show sidebar only on larger screens or via toggle
 )
 
 # Load CSS from external file
@@ -228,116 +227,116 @@ except KeyError:
 st.sidebar.markdown("## Navigation")
 selected_page = st.sidebar.radio(
     "Go to",
-    ["Find Nearest Store", "Add/Edit Store", "Delivery Fee", "Price Calculator"]
+    ["Find Store/Add/Edit", "Delivery Fee", "Price Calculator"]
 )
 
-if selected_page == "Find Nearest Store":
+if selected_page == "Find Store/Add/Edit":
     fetch_stores_from_db_local()
     st.markdown("---")
-    st.markdown("<div class='input-section'>", unsafe_allow_html=True)
-    st.markdown("<h3>Your Current Location</h3>", unsafe_allow_html=True)
+    
+    # Sub-navigation for Find Store and Add/Edit
+    sub_mode = st.radio("Choose Section", ["Find Nearest Store", "Add/Edit Store"], key="find_add_edit_selector")
 
-    with st.form("search_form"):
-        user_address_input = st.text_input("Enter your Address (e.g., 'Burj Khalifa, Dubai')", value="", key="search_address_input")
-        find_nearest_button = st.form_submit_button("Find Nearest Store")
+    if sub_mode == "Find Nearest Store":
+        st.markdown("<div class='input-section'>", unsafe_allow_html=True)
+        st.markdown("<h3>Your Current Location</h3>", unsafe_allow_html=True)
 
-    if find_nearest_button:
-        user_lat, user_lon = None, None
-        if str(user_address_input).strip():
-            with st.spinner("Searching for the nearest store..."):
-                user_lat, user_lon = get_coordinates_from_address(user_address_input, google_api_key)
-            if user_lat is None or user_lon is None:
-                st.error("Could not get coordinates from the provided address. Please try another address or check your API key.")
-        else:
-            st.error("Please provide an address to find the nearest store.")
+        with st.form("search_form"):
+            user_address_input = st.text_input("Enter your Address (e.g., 'Burj Khalifa, Dubai')", value="", key="search_address_input")
+            find_nearest_button = st.form_submit_button("Find Nearest Store")
 
-        if user_lat is not None and user_lon is not None:
-            nearest_store = None
-            min_distance = float('inf')
-
-            if not st.session_state.stores_df.empty:
-                for index, store in st.session_state.stores_df.iterrows():
-                    store_lat = store["latitude"]
-                    store_lon = store["longitude"]
-                    distance = haversine(user_lat, user_lon, store_lat, store_lon)
-
-                    if distance < min_distance:
-                        min_distance = distance
-                        nearest_store = store
-
-            if nearest_store is not None:
-                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
-                st.markdown(f"<p class='store-name'>Nearest Store: {nearest_store['name']}</p>", unsafe_allow_html=True)
-                st.markdown(f"<p class='distance-text'>Distance: {min_distance:.2f} km</p>", unsafe_allow_html=True)
-                st.markdown(f"<p class='distance-text'>Address: {nearest_store['address']}</p>", unsafe_allow_html=True)
-
-                contact_to_display = nearest_store.get('contact_number')
-                if pd.notnull(contact_to_display) and str(contact_to_display).strip():
-                    st.markdown(f"<p class='distance-text'>Contact: {str(contact_to_display).strip()}</p>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<p class='distance-text'>Contact: Not Available</p>", unsafe_allow_html=True)
-
-                supervisor_to_display = nearest_store.get('branch_supervisor')
-                if pd.notnull(supervisor_to_display) and str(supervisor_to_display).strip():
-                    st.markdown(f"<p class='distance-text'>Supervisor: {str(supervisor_to_display).strip()}</p>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<p class='distance-text'>Supervisor: Not Available</p>", unsafe_allow_html=True)
-
-                status_to_display = nearest_store.get('store_status')
-                if pd.notnull(status_to_display) and str(status_to_display).strip():
-                    st.markdown(f"<p class='distance-text'>Status: {str(status_to_display).strip()}</p>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<p class='distance-text'>Status: Not Available</p>", unsafe_allow_html=True)
-
-                hours_to_display = nearest_store.get('store_hours')
-                if pd.notnull(hours_to_display) and str(hours_to_display).strip():
-                    st.markdown(f"<p class='distance-text'>Hours: {str(hours_to_display).strip()}</p>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<p class='distance-text'>Hours: Not Available</p>", unsafe_allow_html=True)
-
-                st.markdown("</div>", unsafe_allow_html=True)
+        if find_nearest_button:
+            user_lat, user_lon = None, None
+            if str(user_address_input).strip():
+                with st.spinner("Searching for the nearest store..."):
+                    user_lat, user_lon = get_coordinates_from_address(user_address_input, google_api_key)
+                if user_lat is None or user_lon is None:
+                    st.error("Could not get coordinates from the provided address. Please try another address or check your API key.")
             else:
-                st.warning("No stores found in the database to compare with. Please add some stores first.")
-        else:
-            st.info("No locations to display on the map yet.")
+                st.error("Please provide an address to find the nearest store.")
 
-        if user_lat is not None and user_lon is not None:
-            user_location_df = pd.DataFrame([{
-                'latitude': user_lat,
-                'longitude': user_lon,
-                'name': 'Your Location',
-                'size': 200,
-                'color': [255, 0, 0]
-            }])
+            if user_lat is not None and user_lon is not None:
+                nearest_store = None
+                min_distance = float('inf')
 
-            stores_df_for_map = st.session_state.stores_df.copy()
-            if not stores_df_for_map.empty and all(col in stores_df_for_map.columns for col in ['latitude', 'longitude']):
-                stores_df_for_map['size'] = 50
-                stores_df_for_map['color'] = [[0, 0, 255]] * len(stores_df_for_map)
-            else:
-                stores_df_for_map = pd.DataFrame(columns=['latitude', 'longitude', 'name', 'size', 'color'])
+                if not st.session_state.stores_df.empty:
+                    for index, store in st.session_state.stores_df.iterrows():
+                        store_lat = store["latitude"]
+                        store_lon = store["longitude"]
+                        distance = haversine(user_lat, user_lon, store_lat, store_lon)
 
+                        if distance < min_distance:
+                            min_distance = distance
+                            nearest_store = store
 
-            map_data_stores = stores_df_for_map.dropna(subset=['latitude', 'longitude'])
-            map_data = pd.concat([user_location_df, map_data_stores[['latitude', 'longitude', 'name', 'size', 'color']]])
+                if nearest_store is not None:
+                    st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='store-name'>Nearest Store: {nearest_store['name']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='distance-text'>Distance: {min_distance:.2f} km</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='distance-text'>Address: {nearest_store['address']}</p>", unsafe_allow_html=True)
 
-            if not map_data.empty:
-                st.map(map_data,
-                    latitude='latitude',
-                    longitude='longitude',
-                    size='size',
-                    color='color',
-                    zoom=11)
+                    contact_to_display = nearest_store.get('contact_number')
+                    if pd.notnull(contact_to_display) and str(contact_to_display).strip():
+                        st.markdown(f"<p class='distance-text'>Contact: {str(contact_to_display).strip()}</p>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<p class='distance-text'>Contact: Not Available</p>", unsafe_allow_html=True)
+
+                    supervisor_to_display = nearest_store.get('branch_supervisor')
+                    if pd.notnull(supervisor_to_display) and str(supervisor_to_display).strip():
+                        st.markdown(f"<p class='distance-text'>Supervisor: {str(supervisor_to_display).strip()}</p>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<p class='distance-text'>Supervisor: Not Available</p>", unsafe_allow_html=True)
+
+                    status_to_display = nearest_store.get('store_status')
+                    if pd.notnull(status_to_display) and str(status_to_display).strip():
+                        st.markdown(f"<p class='distance-text'>Status: {str(status_to_display).strip()}</p>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<p class='distance-text'>Status: Not Available</p>", unsafe_allow_html=True)
+
+                    hours_to_display = nearest_store.get('store_hours')
+                    if pd.notnull(hours_to_display) and str(hours_to_display).strip():
+                        st.markdown(f"<p class='distance-text'>Hours: {str(hours_to_display).strip()}</p>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<p class='distance-text'>Hours: Not Available</p>", unsafe_allow_html=True)
+
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.warning("No stores found in the database to compare with. Please add some stores first.")
             else:
                 st.info("No locations to display on the map yet.")
 
-elif selected_page == "Add/Edit Store":
-    fetch_stores_from_db_local()
-    st.markdown("---")
-    mode = st.radio("Choose Mode", ["Add New Store", "Edit Existing Store"], key="add_edit_mode_selector")
-    st.markdown("---")
+            if user_lat is not None and user_lon is not None:
+                user_location_df = pd.DataFrame([{
+                    'latitude': user_lat,
+                    'longitude': user_lon,
+                    'name': 'Your Location',
+                    'size': 200,
+                    'color': [255, 0, 0]
+                }])
 
-    if mode == "Add New Store":
+                stores_df_for_map = st.session_state.stores_df.copy()
+                if not stores_df_for_map.empty and all(col in stores_df_for_map.columns for col in ['latitude', 'longitude']):
+                    stores_df_for_map['size'] = 50
+                    stores_df_for_map['color'] = [[0, 0, 255]] * len(stores_df_for_map)
+                else:
+                    stores_df_for_map = pd.DataFrame(columns=['latitude', 'longitude', 'name', 'size', 'color'])
+
+
+                map_data_stores = stores_df_for_map.dropna(subset=['latitude', 'longitude'])
+                map_data = pd.concat([user_location_df, map_data_stores[['latitude', 'longitude', 'name', 'size', 'color']]])
+
+                if not map_data.empty:
+                    st.map(map_data,
+                        latitude='latitude',
+                        longitude='longitude',
+                        size='size',
+                        color='color',
+                        zoom=11)
+                else:
+                    st.info("No locations to display on the map yet.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    elif sub_mode == "Add/Edit Store":
         st.markdown("<div class='input-section'>", unsafe_allow_html=True)
         st.markdown("<h3>Add New Store Location</h3>", unsafe_allow_html=True)
 
@@ -369,8 +368,7 @@ elif selected_page == "Add/Edit Store":
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    elif mode == "Edit Existing Store":
-        st.markdown("<div class='input-section'>", unsafe_allow_html=True)
+        st.markdown("---")
         st.markdown("<h3>Edit Existing Store Location</h3>", unsafe_allow_html=True)
 
         store_names = [""] + list(st.session_state.stores_df['name'].unique()) if not st.session_state.stores_df.empty else [""]
@@ -432,7 +430,7 @@ elif selected_page == "Add/Edit Store":
                             st.error("Could not geocode the updated address. Please try again.")
                             st.stop()
                         else:
-                            new_lat, new_lon = temp_lat, temp_lon
+                            new_lat, new_lon = temp_lat, new_lon
 
                     if new_lat is not None and new_lon is not None:
                         if update_store_in_db(
@@ -458,9 +456,7 @@ elif selected_page == "Add/Edit Store":
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("---")
-
-    if mode == "Edit Existing Store":
+        st.markdown("---")
         st.markdown("<h3>All Saved Stores</h3>", unsafe_allow_html=True)
         if not st.session_state.stores_df.empty:
             cols_config = st.columns([0.5, 2, 3, 1.5, 1.5, 1.2, 2, 0.8])
@@ -486,7 +482,6 @@ elif selected_page == "Add/Edit Store":
                 with row_cols[5]: st.write(str(store.get('store_status', 'N/A')))
                 with row_cols[6]: st.write(str(store.get('store_hours', 'N/A')))
                 with row_cols[7]:
-                    # Directly call delete function, removing the modal activation
                     if st.button("🗑️", key=f"delete_row_{store['id']}", help=f"Delete {store['name']}", type="secondary"):
                         if delete_store_from_db(store['id']):
                             fetch_stores_from_db_local()
@@ -502,7 +497,7 @@ elif selected_page == "Delivery Fee":
     st.markdown("<h3>Delivery Fee Information</h3>", unsafe_allow_html=True)
     st.write("Click the button below to visit our delivery fee information page.")
 
-    delivery_fee_url = "https://katrina-delivery.streamlit.app/"
+    delivery_fee_url = "https://www.example.com/delivery-fees"
     st.link_button("Go to Delivery Fee Page", delivery_fee_url)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -522,7 +517,6 @@ elif selected_page == "Price Calculator":
 
 # --- Footer Section ---
 st.markdown("<div class='footer'>", unsafe_allow_html=True)
-st.markdown("Katrina Bakery LLC 2025 by Judy Sepe", unsafe_allow_html=True)
+st.markdown("Copyright 2025", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Removed the entire conditional modal display block
