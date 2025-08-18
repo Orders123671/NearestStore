@@ -15,21 +15,25 @@ html, body {
     min-height: 100vh;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100%;
+    /* Default Light Mode Styles */
     background-color: #f8f9fa !important;
     color: #343a40;
-    width: 100%;
 }
 
-/* Ensure Streamlit's native sidebar is completely hidden */
+/* Streamlit's native sidebar */
 [data-testid="stSidebarV1"] {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
-    flex-basis: 0 !important;
-    padding: 0 !important;
+    /* Removed display: none !important; to make it visible */
+    width: 250px; /* Or a preferred width */
+    min-width: 150px;
+    max-width: 400px;
+    flex-basis: 250px;
+    padding: 1rem !important;
     margin: 0 !important;
-    visibility: hidden !important;
+    background-color: #e9ecef; /* Light mode sidebar background */
+    color: #343a40;
+    border-right: 1px solid #ced4da;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
 }
 
 /* Adjust Streamlit's main content area */
@@ -234,29 +238,33 @@ div[data-testid="stDataFrame"] .header-row,
     border-radius: 5px 5px 0 0;
 }
 
-/* Custom CSS for st.tabs for primary navigation */
-.stTabs {
-    margin-bottom: 1rem;
-}
-.stTabs [data-testid="stTabContent"] {
-    padding: 0.8rem 0 0 0;
-}
-.stTabs [data-testid="stTab"] {
+/* Custom CSS for st.sidebar.radio labels (simulating tabs with links) */
+[data-testid="stSidebarV1"] .stRadio > label {
+    display: flex;
+    align-items: center;
     padding: 0.7rem 1.2rem;
-    background-color: #e9ecef;
-    border-radius: 5px 5px 0 0;
-    margin-right: 0.4rem;
+    margin-bottom: 0.4rem;
+    border-radius: 5px;
     font-weight: 600;
-    color: #495057;
+    color: #495057; /* Light mode text color */
+    background-color: #e9ecef; /* Light mode background */
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
-.stTabs [data-testid="stTab"][aria-selected="true"] {
-    background-color: #ffffff;
-    color: #007bff;
-    border-bottom: 2px solid #007bff;
+
+[data-testid="stSidebarV1"] .stRadio > label:hover {
+    background-color: #dee2e6; /* Light mode hover */
 }
-.stTabs [data-testid="stTab"]:hover:not([aria-selected="true"]) {
-    background-color: #dee2e6;
+
+[data-testid="stSidebarV1"] .stRadio > label.st-selected {
+    background-color: #007bff; /* Light mode selected background */
+    color: white;
 }
+/* Ensure the text within selected radio button is white in light mode */
+[data-testid="stSidebarV1"] .stRadio > label.st-selected div[data-testid="stMarkdownContainer"] p {
+    color: white !important;
+}
+
 
 /* Animation for modal */
 @keyframes fadeIn {
@@ -278,7 +286,7 @@ div[data-testid="stDataFrame"] .header-row,
     z-index: 10000;
 }
 #custom-modal-content {
-    background-color: #ffffff;
+    background-color: #ffffff; /* Light mode modal background */
     border: 1px solid #dc3545;
     border-radius: 8px;
     padding: 2rem;
@@ -286,7 +294,7 @@ div[data-testid="stDataFrame"] .header-row,
     max-width: 500px;
     width: 90%;
     animation: fadeIn 0.2s ease-out;
-    color: #343a40;
+    color: #343a40; /* Light mode modal text */
 }
 
 #custom-modal-content h4 {
@@ -318,4 +326,175 @@ div[data-testid="stDataFrame"] .header-row,
 }
 #custom-modal-content [data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
     background-color: #5a6268;
+}
+
+
+/* --- Dark Mode Styles --- */
+@media (prefers-color-scheme: dark) {
+    /* Overall app container styling */
+    [data-testid="stAppViewContainer"] {
+        background-color: #1a1a1a !important; /* Dark background */
+        color: #f0f2f6; /* Light text */
+    }
+
+    /* Streamlit's native sidebar */
+    [data-testid="stSidebarV1"] {
+        background-color: #2c2c2c; /* Darker sidebar background */
+        color: #f0f2f6;
+        border-right: 1px solid #444;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+    }
+
+    /* Main Header Styling */
+    .main-header {
+        color: #6ee67b; /* Green for dark mode headers */
+    }
+
+    /* Subheader Styling */
+    .subheader {
+        color: #bbb;
+    }
+
+    /* Input Section (Forms) Styling */
+    .input-section {
+        background-color: #2c2c2c; /* Dark background for input sections */
+        border: 1px solid #444;
+    }
+
+    /* Headers within sections */
+    h3 {
+        color: #61affe; /* Blue for dark mode headers */
+        border-bottom-color: #61affe;
+    }
+
+    /* Result Card Styling */
+    .result-card {
+        background-color: #3a4a3a; /* Darker green for result card */
+        border-left: 4px solid #6ee67b; /* Brighter green border */
+    }
+
+    /* Store Name in Result Card */
+    .store-name {
+        color: #a2f2b2; /* Lighter green for store name */
+    }
+
+    /* Distance and other text in Result Card */
+    .distance-text {
+        color: #f0f2f6;
+    }
+
+    /* Streamlit Button Styling */
+    .stButton>button, .stDownloadButton>button, .stLinkButton>a {
+        background-color: #61affe; /* Dark mode blue button */
+        color: white;
+    }
+    .stButton>button:hover, .stDownloadButton>button:hover, .stLinkButton>a:hover {
+        background-color: #4b8cdb;
+    }
+
+    /* Delete Button Specific Styling */
+    .delete-icon-button {
+        background-color: #e57373; /* Darker red for delete */
+    }
+    .delete-icon-button:hover {
+        background-color: #d32f2f;
+    }
+
+    /* Adjust Streamlit specific elements for proportional width */
+    .stTextInput>div>div>input, .stSelectbox>div>div>select, .stTextArea>div>div>textarea {
+        border: 1px solid #666;
+        background-color: #3a3a3a; /* Dark background for inputs */
+        color: #f0f2f6; /* Light text */
+    }
+    .stTextInput>div>div>input:focus, .stSelectbox>div>div>select:focus, .stTextArea>div>div>textarea:focus {
+        border-color: #61affe;
+    }
+
+    div[data-testid="stRadio"] label {
+        background-color: #3a3a3a; /* Dark background for radio labels */
+        color: #f0f2f6;
+    }
+    div[data-testid="stRadio"] label:hover {
+        background-color: #4a4a4a;
+    }
+    div[data-testid="stRadio"] label.st-selected {
+        background-color: #61affe; /* Dark mode selected blue */
+        color: white;
+    }
+    div[data-testid="stRadio"] label.st-selected svg {
+        fill: white !important;
+    }
+    div[data-testid="stRadio"] label.st-selected div[data-testid="stMarkdownContainer"] p {
+        color: white !important;
+    }
+
+    /* Info and Warning messages */
+    .stAlert.info {
+        background-color: #2a3d54; /* Darker blue for info */
+        border-left: 3px solid #61affe;
+        color: #b0c4de;
+    }
+    .stAlert.warning {
+        background-color: #5c4a16; /* Darker yellow for warning */
+        border-left: 3px solid #ffeb3b;
+        color: #fff8e6;
+    }
+    .stAlert.error {
+        background-color: #5a2e2e; /* Darker red for error */
+        border-left: 3px solid #e57373;
+        color: #ffe6e6;
+    }
+
+    /* Streamlit's "All Saved Stores" simulated table headers */
+    div[data-testid="stDataFrame"] .header-row,
+    .stApp .main h3 + hr + div > div:first-child[data-testid="stHorizontalBlock"] {
+        background-color: #61affe; /* Dark mode blue header */
+        color: white;
+    }
+    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"] {
+        background-color: #2c2c2c; /* Darker rows */
+        border-bottom: 1px solid #444;
+    }
+    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:nth-child(odd) {
+        background-color: #282828;
+    }
+    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:nth-child(even) {
+        background-color: #303030;
+    }
+    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:last-child {
+        border-bottom: none;
+    }
+
+    /* Footer Styling */
+    .footer {
+        background-color: #2c2c2c; /* Darker footer */
+        color: #999;
+    }
+
+    /* Custom CSS for st.sidebar.radio labels (simulating tabs with links) */
+    [data-testid="stSidebarV1"] .stRadio > label {
+        color: #f0f2f6; /* Dark mode text color */
+        background-color: #2c2c2c; /* Dark mode background */
+    }
+
+    [data-testid="stSidebarV1"] .stRadio > label:hover {
+        background-color: #4a4a4a; /* Dark mode hover */
+    }
+
+    [data-testid="stSidebarV1"] .stRadio > label.st-selected {
+        background-color: #61affe; /* Dark mode selected background */
+        color: white;
+    }
+    /* Ensure the text within selected radio button is white in dark mode */
+    [data-testid="stSidebarV1"] .stRadio > label.st-selected div[data-testid="stMarkdownContainer"] p {
+        color: white !important;
+    }
+
+
+    /* Modal specific styling */
+    #custom-modal-content {
+        background-color: #2c2c2c; /* Dark mode modal background */
+        border: 1px solid #e57373; /* Dark mode border */
+        color: #f0f2f6; /* Dark mode modal text */
+    }
 }
