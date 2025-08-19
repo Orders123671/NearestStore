@@ -497,7 +497,7 @@ elif selected_page == "Delivery Fee":
     st.markdown("<h3>Delivery Fee Information</h3>", unsafe_allow_html=True)
     st.write("Click the button below to visit our delivery fee information page.")
 
-    delivery_fee_url = "https://www.example.com/delivery-fees"
+    delivery_fee_url = "https://katrina-delivery.streamlit.app/"
     st.link_button("Go to Delivery Fee Page", delivery_fee_url)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -517,6 +517,6 @@ elif selected_page == "Price Calculator":
 
 # --- Footer Section ---
 st.markdown("<div class='footer'>", unsafe_allow_html=True)
-st.markdown("Copyright 2025", unsafe_allow_html=True)
+st.markdown("Katrina Bakery LLC 2025 by Jude", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
