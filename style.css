@@ -1,500 +1,346 @@
-/* style.css */
-
-/* Global reset and font */
-html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
-    height: 100% !important;
-    overflow-x: hidden;
-    font-family: 'Inter', sans-serif !important;
+/* Define CSS Variables for theming */
+:root {
+    /* Light Mode Defaults */
+    --body-bg: #f0f2f6;
+    --text-color: #333333;
+    --header-color: #2c3e50;
+    --subheader-color: #7f8c8d;
+    --section-bg: rgba(255, 255, 255, 0.95);
+    --card-bg: rgba(236, 240, 241, 0.95);
+    --border-color: #e0e0e0;
+    --input-bg: #ffffff;
+    --sidebar-bg: rgba(255, 255, 255, 0.9);
+    --primary-blue: #3498db;
+    --darker-blue: #2980b9;
+    --delete-red: #e74c3c;
+    --darker-red: #c0392b;
+    --submit-green: #2ecc71;
+    --darker-green: #27ae60;
+    --alert-info-bg: #d9edf7;
+    --alert-info-border: #bce8f1;
+    --alert-info-color: #31708f;
+    --alert-warning-bg: #fcf8e3;
+    --alert-warning-border: #faebcc;
+    --alert-warning-color: #8a6d3b;
+    --alert-error-bg: #f2dede;
+    --alert-error-border: #ebccd1;
+    --alert-error-color: #a94442;
 }
 
-/* Overall app container styling */
-[data-testid="stAppViewContainer"] {
-    min-height: 100vh;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100%;
-    /* Default Light Mode Styles */
-    background-color: #f8f9fa !important;
-    color: #343a40;
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --body-bg: #1e1e1e;
+        --text-color: #f0f0f0;
+        --header-color: #bb86fc; /* Accent color for dark mode headers */
+        --subheader-color: #b0b0b0;
+        --section-bg: rgba(40, 40, 40, 0.95);
+        --card-bg: rgba(50, 50, 50, 0.95);
+        --border-color: #3a3a3a;
+        --input-bg: #2b2b2b;
+        --sidebar-bg: rgba(30, 30, 30, 0.9);
+        --primary-blue: #03dac6; /* Accent color for primary elements */
+        --darker-blue: #018786;
+        --delete-red: #cf6679;
+        --darker-red: #bb3d52;
+        --submit-green: #03dac6; /* Using primary accent for submit as well */
+        --darker-green: #018786;
+        --alert-info-bg: rgba(50, 150, 200, 0.2);
+        --alert-info-border: rgba(50, 150, 200, 0.4);
+        --alert-info-color: #87ceeb;
+        --alert-warning-bg: rgba(255, 200, 0, 0.2);
+        --alert-warning-border: rgba(255, 200, 0, 0.4);
+        --alert-warning-color: #ffd700;
+        --alert-error-bg: rgba(255, 50, 50, 0.2);
+        --alert-error-border: rgba(255, 50, 50, 0.4);
+        --alert-error-color: #ff6347;
+    }
 }
 
-/* Streamlit's native sidebar */
-[data-testid="stSidebarV1"] {
-    /* Removed display: none !important; to make it visible */
-    width: 250px; /* Or a preferred width */
-    min-width: 150px;
-    max-width: 400px;
-    flex-basis: 250px;
-    padding: 1rem !important;
-    margin: 0 !important;
-    background-color: #e9ecef; /* Light mode sidebar background */
-    color: #343a40;
-    border-right: 1px solid #ced4da;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+
+/* General Body and Font Styling */
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-color);
+    background-color: var(--body-bg);
 }
 
-/* Adjust Streamlit's main content area */
-.stApp .main {
-    padding: 2rem !important;
-    overflow-y: auto;
-    width: auto;
-}
+/* Removed Decorative Images (cake and truck) */
+
 
 /* Main Header Styling */
 .main-header {
-    font-size: 2.8rem;
-    color: #28a745;
-    text-align: center !important;
-    margin-bottom: 1.5rem;
-    padding-top: 1rem;
-    width: 100%;
-    font-weight: 700;
+    color: var(--header-color);
+    text-align: center;
+    padding: 20px 0;
+    margin-bottom: 0;
+    font-size: 2.5em; /* Larger font size */
+    font-weight: 700; /* Bold */
+    border-bottom: 2px solid var(--primary-blue);
+    background-color: var(--section-bg); /* Use variable */
+    border-radius: 8px; /* Rounded corners */
+    margin-left: 1rem;
+    margin-right: 1rem;
 }
 
 /* Subheader Styling */
 .subheader {
-    font-size: 1.2rem;
-    color: #555;
-    text-align: center !important;
-    margin-bottom: 2.5rem;
-    width: 100%;
+    text-align: center;
+    color: var(--subheader-color);
+    font-size: 1.1em;
+    margin-top: 5px;
+    margin-bottom: 30px;
+    background-color: var(--section-bg); /* Use variable */
+    border-radius: 8px;
+    padding: 5px 0;
+    margin-left: 1rem;
+    margin-right: 1rem;
 }
 
-/* Input Section (Forms) Styling */
+/* Input Section Styling */
 .input-section {
-    background-color: #ffffff;
-    padding: 2rem;
-    border-radius: 5px;
-    margin-bottom: 2rem;
-    border: 1px solid #e9ecef;
+    background-color: var(--section-bg); /* Use variable */
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+    border: 1px solid var(--border-color);
 }
 
-/* Headers within sections */
-h3 {
-    color: #007bff;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid #007bff;
-    padding-bottom: 0.5rem;
-    font-weight: 600;
+.input-section h3 {
+    color: var(--header-color);
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 10px;
 }
 
 /* Result Card Styling */
 .result-card {
-    background-color: #e6ffe6;
-    border-left: 4px solid #28a745;
-    padding: 1.5rem;
-    border-radius: 5px;
-    margin-top: 2rem;
+    background-color: var(--card-bg); /* Use variable */
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+    border-left: 5px solid var(--primary-blue);
 }
 
-/* Store Name in Result Card */
-.store-name {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: #1a662e;
-    margin-bottom: 0.5rem;
+.result-card .store-name {
+    font-size: 1.4em;
+    font-weight: 600;
+    color: var(--header-color);
+    margin-bottom: 10px;
 }
 
-/* Distance and other text in Result Card */
-.distance-text {
-    font-size: 1rem;
-    color: #333;
-    line-height: 1.5;
+.result-card .distance-text {
+    font-size: 1em;
+    color: var(--text-color);
+    margin-bottom: 5px;
 }
 
-/* Streamlit Button Styling */
-.stButton>button, .stDownloadButton>button, .stLinkButton>a {
-    background-color: #007bff;
+/* Streamlit specific adjustments */
+/* Target specific Streamlit elements for consistent styling */
+
+/* Text input and number input fields */
+div.stTextInput > div > div > input,
+div.stNumberInput > div > div > input {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 10px 15px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+/* Selectbox styling */
+div.stSelectbox > label + div > div {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+/* Buttons */
+.stButton > button {
+    background-color: var(--primary-blue); /* Primary blue */
     color: white;
-    border-radius: 5px;
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
     border: none;
     cursor: pointer;
-}
-.stButton>button:hover, .stDownloadButton>button:hover, .stLinkButton>a:hover {
-    background-color: #0056b3;
-}
-
-/* Delete Button Specific Styling */
-.delete-icon-button {
-    background-color: #dc3545;
-    color: white;
-    border-radius: 5px;
-    padding: 0.3rem 0.6rem;
-    font-size: 0.9rem;
-    border: none;
-    cursor: pointer;
-}
-.delete-icon-button:hover {
-    background-color: #c82333;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    /* Make primary buttons proportional and centered */
+    width: auto;
+    max-width: 250px; /* Adjust this value as needed for desired size */
+    display: block; /* Allows margin: auto for centering */
+    margin: 10px auto; /* Centers the button horizontally with vertical spacing */
 }
 
-/* Adjust Streamlit specific elements for proportional width */
-.stTextInput, .stSelectbox, .stTextArea {
-    width: 100%;
-    margin-bottom: 0.8rem;
+.stButton > button:hover {
+    background-color: var(--darker-blue); /* Darker blue on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
 }
-.stTextInput>div>div>input, .stSelectbox>div>div>select, .stTextArea>div>div>textarea {
-    border-radius: 5px;
-    border: 1px solid #ced4da;
-    padding: 0.6rem 0.8rem;
-    font-size: 1rem;
-    width: 100%;
-    box-sizing: border-box;
-    background-color: #fcfcfc;
-}
-.stTextInput>div>div>input:focus, .stSelectbox>div>div>select:focus, .stTextArea>div>div>textarea:focus {
-    border-color: #007bff;
-    outline: none;
-}
-div[data-testid="stRadio"] label {
-    background-color: #f0f2f6;
-    border-radius: 5px;
-    padding: 0.6rem 1rem;
-    margin: 0.3rem 0.3rem 0.3rem 0;
-    display: inline-flex;
+
+.stButton > button[type="secondary"] {
+    background-color: var(--delete-red); /* Red for delete/cancel actions */
+    width: auto; /* Allow auto-sizing for icon buttons */
+    min-width: 40px; /* Minimum width for icon buttons */
+    min-height: 40px; /* Minimum height for icon buttons */
+    padding: 8px; /* Adjust padding for icon buttons */
+    font-size: 1.1em; /* Adjust font size for icons */
+    display: inline-flex; /* Use flex to center icon if text is short */
     align-items: center;
-    cursor: pointer;
-}
-div[data-testid="stRadio"] label:hover {
-    background-color: #e2e4e8;
-}
-div[data-testid="stRadio"] label.st-selected {
-    background-color: #007bff;
-    color: white;
-}
-div[data-testid="stRadio"] label.st-selected svg {
-    fill: white !important;
-}
-div[data-testid="stRadio"] label.st-selected div[data-testid="stMarkdownContainer"] p {
-    color: white !important;
+    justify-content: center;
+    margin: 0 auto; /* Remove specific margin for secondary buttons, let container manage */
 }
 
-/* Info and Warning messages */
+.stButton > button[type="secondary"]:hover {
+    background-color: var(--darker-red); /* Darker red on hover */
+}
+
+
+/* Form submit buttons */
+div.stForm > div > div > button {
+    background-color: var(--submit-green); /* Green for submit actions */
+    color: white;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    /* Make form submit buttons proportional and centered */
+    width: auto;
+    max-width: 250px; /* Adjust this value as needed for desired size */
+    display: block; /* Allows margin: auto for centering */
+    margin: 10px auto; /* Centers the button horizontally with vertical spacing */
+}
+
+div.stForm > div > div > button:hover {
+    background-color: var(--darker-green); /* Darker green on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Info, Warning, Error messages */
 .stAlert {
-    border-radius: 5px;
-    padding: 0.8rem;
-    margin-bottom: 0.8rem;
-    font-size: 0.9rem;
-}
-.stAlert.info {
-    background-color: #e7f3ff;
-    border-left: 3px solid #007bff;
-    color: #0056b3;
-}
-.stAlert.warning {
-    background-color: #fff8e6;
-    border-left: 3px solid #ffc107;
-    color: #cc9b00;
-}
-.stAlert.error {
-    background-color: #ffe6e6;
-    border-left: 3px solid #dc3545;
-    color: #a71d2a;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
 }
 
-/* Streamlit's "All Saved Stores" simulated table headers */
-div[data-testid="stDataFrame"] .header-row,
-.stApp .main h3 + hr + div > div:first-child[data-testid="stHorizontalBlock"] {
-    background-color: #007bff;
+.stAlert.info {
+    background-color: var(--alert-info-bg);
+    border-color: var(--alert-info-border);
+    color: var(--alert-info-color);
+}
+
+.stAlert.warning {
+    background-color: var(--alert-warning-bg);
+    border-color: var(--alert-warning-border);
+    color: var(--alert-warning-color);
+}
+
+.stAlert.error {
+    background-color: var(--alert-error-bg);
+    border-color: var(--alert-error-border);
+    color: var(--alert-error-color);
+}
+
+
+/* Table and Dataframe styling in Streamlit */
+.stDataFrame, .stTable {
+    border-radius: 8px;
+    overflow: hidden; /* Ensures rounded corners apply to content */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.stDataFrame table, .stTable table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.stDataFrame th, .stTable th {
+    background-color: var(--primary-blue); /* Blue header */
     color: white;
-    font-weight: 700;
-    border-radius: 5px 5px 0 0;
-    padding: 0.7rem 0.5rem;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 1.05em;
+    border-bottom: 2px solid var(--darker-blue);
 }
-.stApp .main h3 + hr + div > div:first-child[data-testid="stHorizontalBlock"] > div > div > p {
-    font-weight: 700 !important;
-    color: white !important;
+
+.stDataFrame td, .stTable td {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--section-bg); /* Use variable */
+    color: var(--text-color);
 }
-.stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"] {
-    background-color: #ffffff;
-    padding: 0.5rem 0.5rem;
-    border-bottom: 1px solid #eee;
-    align-items: center;
-}
-.stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:nth-child(odd) {
-    background-color: #fefefe;
-}
-.stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:nth-child(even) {
-    background-color: #f8f9fa;
-}
-.stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:last-child {
-    border-bottom: none;
+
+.stDataFrame tr:nth-child(even) td, .stTable tr:nth-child(even) td {
+    background-color: var(--card-bg); /* Subtle stripe for readability */
 }
 
 /* Footer Styling */
 .footer {
-    position: relative;
-    margin-top: 2rem;
-    background-color: #e9ecef;
-    color: #6c757d;
     text-align: center;
-    padding: 0.8rem 0;
-    font-size: 0.8rem;
-    border-radius: 5px 5px 0 0;
-}
-
-/* Custom CSS for st.sidebar.radio labels (simulating tabs with links) */
-[data-testid="stSidebarV1"] .stRadio > label {
-    display: flex;
-    align-items: center;
-    padding: 0.7rem 1.2rem;
-    margin-bottom: 0.4rem;
-    border-radius: 5px;
-    font-weight: 600;
-    color: #495057; /* Light mode text color */
-    background-color: #e9ecef; /* Light mode background */
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-}
-
-[data-testid="stSidebarV1"] .stRadio > label:hover {
-    background-color: #dee2e6; /* Light mode hover */
-}
-
-[data-testid="stSidebarV1"] .stRadio > label.st-selected {
-    background-color: #007bff; /* Light mode selected background */
-    color: white;
-}
-/* Ensure the text within selected radio button is white in light mode */
-[data-testid="stSidebarV1"] .stRadio > label.st-selected div[data-testid="stMarkdownContainer"] p {
-    color: white !important;
-}
-
-
-/* Animation for modal */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Modal specific styling */
-#custom-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-}
-#custom-modal-content {
-    background-color: #ffffff; /* Light mode modal background */
-    border: 1px solid #dc3545;
+    margin-top: 50px;
+    padding: 20px;
+    color: var(--subheader-color);
+    font-size: 0.9em;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--section-bg); /* Use variable */
     border-radius: 8px;
-    padding: 2rem;
-    text-align: center;
-    max-width: 500px;
-    width: 90%;
-    animation: fadeIn 0.2s ease-out;
-    color: #343a40; /* Light mode modal text */
+    margin-left: 1rem;
+    margin-right: 1rem;
 }
 
-#custom-modal-content h4 {
-    color: #dc3545;
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
-    font-weight: 700;
-}
-#custom-modal-content p {
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
+/* Ensure Streamlit's main content area and sidebar have appropriate backgrounds */
+.stApp {
+    background-color: transparent; /* Let the body background show through */
 }
 
-#custom-modal-content .stButton > button {
-    padding: 0.6rem 1.2rem;
-    font-size: 1rem;
-    border-radius: 5px;
-    font-weight: 600;
+.stApp > header {
+    background-color: transparent; /* For Streamlit's top header if present */
 }
 
-#custom-modal-content [data-testid="stHorizontalBlock"] > div:first-child .stButton > button {
-    background-color: #28a745;
-}
-#custom-modal-content [data-testid="stHorizontalBlock"] > div:first-child .stButton > button:hover {
-    background-color: #218838;
-}
-#custom-modal-content [data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
-    background-color: #6c757d;
-}
-#custom-modal-content [data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
-    background-color: #5a6268;
+.stSidebar {
+    background-color: var(--sidebar-bg); /* Use variable */
+    border-right: 1px solid var(--border-color);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
 
-/* --- Dark Mode Styles --- */
-@media (prefers-color-scheme: dark) {
-    /* Overall app container styling */
-    [data-testid="stAppViewContainer"] {
-        background-color: #1a1a1a !important; /* Dark background */
-        color: #f0f2f6; /* Light text */
-    }
-
-    /* Streamlit's native sidebar */
-    [data-testid="stSidebarV1"] {
-        background-color: #2c2c2c; /* Darker sidebar background */
-        color: #f0f2f6;
-        border-right: 1px solid #444;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.5);
-    }
-
-    /* Main Header Styling */
+/* Responsive adjustments */
+@media (max-width: 768px) {
     .main-header {
-        color: #6ee67b; /* Green for dark mode headers */
+        font-size: 2em;
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
     }
-
-    /* Subheader Styling */
     .subheader {
-        color: #bbb;
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
     }
-
-    /* Input Section (Forms) Styling */
     .input-section {
-        background-color: #2c2c2c; /* Dark background for input sections */
-        border: 1px solid #444;
+        padding: 15px;
     }
-
-    /* Headers within sections */
-    h3 {
-        color: #61affe; /* Blue for dark mode headers */
-        border-bottom-color: #61affe;
+    .input-section h3 {
+        font-size: 1.5em;
     }
-
-    /* Result Card Styling */
-    .result-card {
-        background-color: #3a4a3a; /* Darker green for result card */
-        border-left: 4px solid #6ee67b; /* Brighter green border */
+    .stButton > button,
+    div.stForm > div > div > button {
+        padding: 8px 15px;
+        font-size: 0.9em;
+        max-width: 100%; /* Ensure full width on small screens if desired */
     }
-
-    /* Store Name in Result Card */
-    .store-name {
-        color: #a2f2b2; /* Lighter green for store name */
-    }
-
-    /* Distance and other text in Result Card */
-    .distance-text {
-        color: #f0f2f6;
-    }
-
-    /* Streamlit Button Styling */
-    .stButton>button, .stDownloadButton>button, .stLinkButton>a {
-        background-color: #61affe; /* Dark mode blue button */
-        color: white;
-    }
-    .stButton>button:hover, .stDownloadButton>button:hover, .stLinkButton>a:hover {
-        background-color: #4b8cdb;
-    }
-
-    /* Delete Button Specific Styling */
-    .delete-icon-button {
-        background-color: #e57373; /* Darker red for delete */
-    }
-    .delete-icon-button:hover {
-        background-color: #d32f2f;
-    }
-
-    /* Adjust Streamlit specific elements for proportional width */
-    .stTextInput>div>div>input, .stSelectbox>div>div>select, .stTextArea>div>div>textarea {
-        border: 1px solid #666;
-        background-color: #3a3a3a; /* Dark background for inputs */
-        color: #f0f2f6; /* Light text */
-    }
-    .stTextInput>div>div>input:focus, .stSelectbox>div>div>select:focus, .stTextArea>div>div>textarea:focus {
-        border-color: #61affe;
-    }
-
-    div[data-testid="stRadio"] label {
-        background-color: #3a3a3a; /* Dark background for radio labels */
-        color: #f0f2f6;
-    }
-    div[data-testid="stRadio"] label:hover {
-        background-color: #4a4a4a;
-    }
-    div[data-testid="stRadio"] label.st-selected {
-        background-color: #61affe; /* Dark mode selected blue */
-        color: white;
-    }
-    div[data-testid="stRadio"] label.st-selected svg {
-        fill: white !important;
-    }
-    div[data-testid="stRadio"] label.st-selected div[data-testid="stMarkdownContainer"] p {
-        color: white !important;
-    }
-
-    /* Info and Warning messages */
-    .stAlert.info {
-        background-color: #2a3d54; /* Darker blue for info */
-        border-left: 3px solid #61affe;
-        color: #b0c4de;
-    }
-    .stAlert.warning {
-        background-color: #5c4a16; /* Darker yellow for warning */
-        border-left: 3px solid #ffeb3b;
-        color: #fff8e6;
-    }
-    .stAlert.error {
-        background-color: #5a2e2e; /* Darker red for error */
-        border-left: 3px solid #e57373;
-        color: #ffe6e6;
-    }
-
-    /* Streamlit's "All Saved Stores" simulated table headers */
-    div[data-testid="stDataFrame"] .header-row,
-    .stApp .main h3 + hr + div > div:first-child[data-testid="stHorizontalBlock"] {
-        background-color: #61affe; /* Dark mode blue header */
-        color: white;
-    }
-    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"] {
-        background-color: #2c2c2c; /* Darker rows */
-        border-bottom: 1px solid #444;
-    }
-    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:nth-child(odd) {
-        background-color: #282828;
-    }
-    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:nth-child(even) {
-        background-color: #303030;
-    }
-    .stApp .main h3 + hr + div > div[data-testid="stHorizontalBlock"]:last-child {
-        border-bottom: none;
-    }
-
-    /* Footer Styling */
     .footer {
-        background-color: #2c2c2c; /* Darker footer */
-        color: #999;
-    }
-
-    /* Custom CSS for st.sidebar.radio labels (simulating tabs with links) */
-    [data-testid="stSidebarV1"] .stRadio > label {
-        color: #f0f2f6; /* Dark mode text color */
-        background-color: #2c2c2c; /* Dark mode background */
-    }
-
-    [data-testid="stSidebarV1"] .stRadio > label:hover {
-        background-color: #4a4a4a; /* Dark mode hover */
-    }
-
-    [data-testid="stSidebarV1"] .stRadio > label.st-selected {
-        background-color: #61affe; /* Dark mode selected background */
-        color: white;
-    }
-    /* Ensure the text within selected radio button is white in dark mode */
-    [data-testid="stSidebarV1"] .stRadio > label.st-selected div[data-testid="stMarkdownContainer"] p {
-        color: white !important;
-    }
-
-
-    /* Modal specific styling */
-    #custom-modal-content {
-        background-color: #2c2c2c; /* Dark mode modal background */
-        border: 1px solid #e57373; /* Dark mode border */
-        color: #f0f2f6; /* Dark mode modal text */
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
     }
 }
