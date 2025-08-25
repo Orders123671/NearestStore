@@ -10,9 +10,7 @@ import pydeck as pdk # Import pydeck for advanced mapping
 # --- Regular Expressions for Validation ---
 # Basic international phone number format (allows +, digits, spaces, hyphens, parentheses, 7-20 chars)
 CONTACT_NUMBER_PATTERN = r'^\+?[0-9\s\-\(\)]{7,20}$'
-# Flexible time format (e.g., "9 AM", "9:00 AM", "9 AM - 5 PM", "9-5 Mon-Fri")
 STORE_HOURS_PATTERN = r'^\d{1,2}(:\d{2})?\s*(AM|PM)?\s*(-\s*\d{1,2}(:\d{2})?\s*(AM|PM)?)?\s*([a-zA-Z,&\s-]+)?$'
-
 
 # --- Normalization Helper Function ---
 def normalize_string(text):
@@ -205,10 +203,10 @@ def get_coordinates_from_address(address, api_key_to_use):
             location = data["results"][0]["geometry"]["location"]
             return location["lat"], location["lng"]
         else:
-            st.error(f"Error geocoding address: {data['status']}. Please ensure the address is valid and your API key is correct.")
+            st.error(f"Error geocoding address '{address}': {data['status']}. {data.get('error_message', '')} Please ensure the address is valid and your API key is correct.")
             return None, None
     except requests.exceptions.RequestException as e:
-        st.error(f"Network error or invalid API key: {e}. Please check your internet connection and API key configuration.")
+        st.error(f"Network error or invalid API key for Geocoding API: {e}. Please check your internet connection and API key configuration.")
         return None, None
     except Exception as e:
         st.error(f"An unexpected error occurred during geocoding: {e}")
@@ -280,7 +278,7 @@ def get_route_polyline(origin_lat, origin_lon, dest_lat, dest_lon, api_key_to_us
             st.warning("No route found between the specified locations. This might mean they are unreachable by road or too close.")
             return None
         else:
-            st.error(f"Error getting route: {data['status']}. {data.get('error_message', '')}")
+            st.error(f"Error getting route from Directions API: {data['status']}. {data.get('error_message', '')} Please ensure the locations are valid and your API key has Directions API enabled.")
             return None
     except requests.exceptions.RequestException as e:
         st.error(f"Network error or invalid API key for Directions API: {e}. Please check your internet connection and API key configuration.")
@@ -569,6 +567,17 @@ except KeyError:
     st.error("Missing Streamlit secret: 'GOOGLE_MAPS_API_KEY'. Please add it to your Streamlit secrets file.")
     google_api_key = ""
 
+# Retrieve Mapbox API key from Streamlit secrets
+try:
+    mapbox_api_key = st.secrets["MAPBOX_API_KEY"]
+    # Set Mapbox API key as a global Pydeck setting
+    pdk.settings.mapbox_api_key = mapbox_api_key
+except KeyError:
+    st.warning("Missing Streamlit secret: 'MAPBOX_API_KEY'. Pydeck maps may not render correctly without it. Please add it to your Streamlit secrets file.")
+    # Assign an empty string or None if not found, as pydeck.settings will handle it.
+    mapbox_api_key = "" 
+
+
 # --- Sidebar Navigation ---
 st.sidebar.markdown("## Navigation")
 selected_page = st.sidebar.radio(
@@ -735,7 +744,7 @@ if selected_page == "Find Store/Add/Edit":
                     with st.spinner("Calculating the route..."):
                         route_coords = get_route_polyline(user_lat, user_lon, nearest_store['latitude'], nearest_store['longitude'], google_api_key)
                     
-                    if route_coords:
+                    if route_coords: # This is where PathLayer is added
                         # Create a DataFrame for the PathLayer
                         route_df = pd.DataFrame([{'path': route_coords}])
                         
@@ -751,7 +760,7 @@ if selected_page == "Find Store/Add/Edit":
                             )
                         )
                         st.success("Route calculated and displayed on the map!")
-                    else:
+                    else: # This is the fallback for LineLayer
                         st.warning("Could not calculate a detailed route. Displaying straight line if locations are distinct.")
                         # Fallback to straight line if route API fails but locations are distinct
                         line_data = pd.DataFrame([{
@@ -784,9 +793,10 @@ if selected_page == "Find Store/Add/Edit":
 
             if layers:
                 st.pydeck_chart(pdk.Deck(
-                    map_style="mapbox://styles/mapbox/light-v9", # Light map style
+                    map_style="mapbox://styles/mapbox/light-v10", # Changed to a stable light style
                     initial_view_state=view_state,
-                    layers=layers,
+                    layers=layers
+                    # Mapbox API key is now set as a global Pydeck setting
                 ))
             else:
                 st.info("No locations to display on the map yet.")
@@ -1208,7 +1218,6 @@ if st.session_state.delete_confirm_modal_active:
         with col_confirm:
             if st.button("Confirm Delete", key="confirm_delete_final_btn", use_container_width=True, help="Permanently delete this store"):
                 if st.session_state.store_id_to_confirm_delete:
-                    print(f"DEBUG: Confirming and attempting to delete store ID: {st.session_state.store_id_to_confirm_delete}")
                     if delete_store_from_db(st.session_state.store_id_to_confirm_delete):
                         st.session_state.delete_confirm_modal_active = False
                         st.session_state.store_id_to_confirm_delete = None
