@@ -57,8 +57,10 @@ def init_db():
                 branch_supervisor TEXT,
                 store_status TEXT DEFAULT 'Operational',
                 store_hours TEXT,
-                normalized_name TEXT,     -- Added normalized_name
-                normalized_address TEXT,  -- Added normalized_address
+                store_type TEXT,                -- Added store_type
+                normalized_name TEXT,
+                normalized_address TEXT,
+                normalized_store_type TEXT,     -- Added normalized_store_type
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -68,8 +70,10 @@ def init_db():
             "branch_supervisor": "TEXT",
             "store_status": "TEXT DEFAULT 'Operational'",
             "store_hours": "TEXT",
+            "store_type": "TEXT",                # Added store_type
             "normalized_name": "TEXT",
-            "normalized_address": "TEXT"
+            "normalized_address": "TEXT",
+            "normalized_store_type": "TEXT"      # Added normalized_store_type
         }
         for col, col_type in columns_to_add_stores.items():
             try:
@@ -81,11 +85,11 @@ def init_db():
         conn.commit()
         
         # --- Migration Step: Populate normalized columns for existing data ---
-        # Fetch rows where normalized_name or normalized_address are NULL (newly added columns)
-        cursor.execute("SELECT id, name, address, normalized_name, normalized_address FROM stores WHERE normalized_name IS NULL OR normalized_address IS NULL")
+        # Fetch rows where any normalized column or store_type is NULL
+        cursor.execute("SELECT id, name, address, store_type, normalized_name, normalized_address, normalized_store_type FROM stores WHERE normalized_name IS NULL OR normalized_address IS NULL OR store_type IS NULL OR normalized_store_type IS NULL")
         rows_to_update = cursor.fetchall()
         
-        for row_id, name, address, current_normalized_name, current_normalized_address in rows_to_update:
+        for row_id, name, address, current_store_type, current_normalized_name, current_normalized_address, current_normalized_store_type in rows_to_update:
             updates = []
             params = []
             
@@ -98,6 +102,18 @@ def init_db():
                 updated_normalized_address = normalize_string(address)
                 updates.append("normalized_address = ?")
                 params.append(updated_normalized_address)
+
+            if current_store_type is None:
+                # Default to 'Other' if not specified for old entries
+                updated_store_type = 'Other' 
+                updates.append("store_type = ?")
+                params.append(updated_store_type)
+                current_store_type = updated_store_type # Update for next check
+
+            if current_normalized_store_type is None:
+                updated_normalized_store_type = normalize_string(current_store_type)
+                updates.append("normalized_store_type = ?")
+                params.append(updated_normalized_store_type)
                 
             if updates: # If there are updates to apply
                 update_query = f"UPDATE stores SET {', '.join(updates)} WHERE id = ?"
@@ -114,16 +130,16 @@ def init_db():
                 delivery_charge REAL NOT NULL,
                 amount_for_free_delivery REAL,
                 zone TEXT,
-                normalized_location TEXT, -- Added normalized_location
-                normalized_zone TEXT,     -- Added normalized_zone
+                normalized_location TEXT,
+                normalized_zone TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
         columns_to_add_delivery_fees = {
             "amount_for_free_delivery": "REAL",
             "zone": "TEXT",
-            "normalized_location": "TEXT", # Add normalized_location column
-            "normalized_zone": "TEXT"      # Add normalized_zone column
+            "normalized_location": "TEXT",
+            "normalized_zone": "TEXT"
         }
         for col, col_type in columns_to_add_delivery_fees.items():
             try:
@@ -289,7 +305,7 @@ def get_route_polyline(origin_lat, origin_lon, dest_lat, dest_lon, api_key_to_us
 
 
 # --- SQLite Operations for Stores ---
-def add_store_to_db(name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours):
+def add_store_to_db(name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_type):
     """Adds a new store to SQLite database."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
@@ -297,6 +313,7 @@ def add_store_to_db(name, address, latitude, longitude, contact_number, branch_s
             
             normalized_name = normalize_string(name)
             normalized_address = normalize_string(address)
+            normalized_store_type = normalize_string(store_type)
 
             # Check for existing store using normalized name and address
             cursor.execute("SELECT id FROM stores WHERE normalized_name = ? AND normalized_address = ?", (normalized_name, normalized_address))
@@ -305,16 +322,18 @@ def add_store_to_db(name, address, latitude, longitude, contact_number, branch_s
                 st.error(f"A store with the name '{name}' and address '{address}' (or a similar normalized form) already exists!")
                 return False
 
-            cursor.execute("INSERT INTO stores (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, normalized_name, normalized_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                           (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, normalized_name, normalized_address))
+            cursor.execute("INSERT INTO stores (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_type, normalized_name, normalized_address, normalized_store_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                           (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_type, normalized_name, normalized_address, normalized_store_type))
             conn.commit()
         st.success(f"Store '{name}' added successfully!")
+        # Clear the cache for stores so that the updated data is re-fetched
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Error adding store to database: {e}")
         return False
 
-def update_store_in_db(store_id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours):
+def update_store_in_db(store_id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_type):
     """Updates an existing store in SQLite database."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
@@ -323,6 +342,7 @@ def update_store_in_db(store_id, name, address, latitude, longitude, contact_num
 
             normalized_name = normalize_string(name)
             normalized_address = normalize_string(address)
+            normalized_store_type = normalize_string(store_type)
 
             # Check for duplicates, excluding the current store being updated
             cursor.execute("SELECT id FROM stores WHERE normalized_name = ? AND normalized_address = ? AND id != ?",
@@ -342,10 +362,12 @@ def update_store_in_db(store_id, name, address, latitude, longitude, contact_num
                     branch_supervisor = ?,
                     store_status = ?,
                     store_hours = ?,
+                    store_type = ?,
                     normalized_name = ?,
-                    normalized_address = ?
+                    normalized_address = ?,
+                    normalized_store_type = ?
                 WHERE id = ?
-            """, (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, normalized_name, normalized_address, store_id_int))
+            """, (name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_type, normalized_name, normalized_address, normalized_store_type, store_id_int))
 
             rows_affected = cursor.rowcount
             if rows_affected == 0:
@@ -353,14 +375,15 @@ def update_store_in_db(store_id, name, address, latitude, longitude, contact_num
                 return False
             conn.commit()
         st.success(f"Store '{name}' (ID: {store_id_int}) updated successfully!")
+        # Clear the cache for stores so that the updated data is re-fetched
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Error updating store in database: {e}")
         return False
 
 def delete_store_from_db(store_id):
-    """D
-eletes a store from SQLite database by its ID."""
+    """Deletes a store from SQLite database by its ID."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
@@ -369,6 +392,8 @@ eletes a store from SQLite database by its ID."""
             conn.commit()
         if rows_deleted > 0:
             st.success(f"Store with ID {store_id} deleted successfully!")
+            # Clear the cache for stores so that the updated data is re-fetched
+            st.cache_data.clear()
             return True
         else:
             st.warning(f"No store found with ID {store_id} to delete.")
@@ -399,6 +424,8 @@ def add_delivery_fee_to_db(location, min_order_amount, delivery_charge, amount_f
                            (location, min_order_amount, delivery_charge, amount_for_free_delivery, zone, normalized_location, normalized_zone))
             conn.commit()
         st.success(f"Delivery fee for '{location}' added successfully!")
+        # Clear the cache for delivery fees so that the updated data is re-fetched
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Error adding delivery fee to database: {e}")
@@ -440,6 +467,8 @@ def update_delivery_fee_in_db(fee_id, location, min_order_amount, delivery_charg
                 return False
             conn.commit()
         st.success(f"Delivery fee for '{location}' (ID: {fee_id_int}) updated successfully!")
+        # Clear the cache for delivery fees so that the updated data is re-fetched
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Error updating delivery fee in database: {e}")
@@ -456,6 +485,8 @@ def delete_delivery_fee_from_db(fee_id):
             conn.commit()
         if rows_deleted > 0:
             st.success(f"Delivery fee entry with ID {fee_id} deleted successfully!")
+            # Clear the cache for delivery fees so that the updated data is re-fetched
+            st.cache_data.clear()
             return True
         else:
             st.warning(f"No delivery fee entry found with ID {fee_id} to delete.")
@@ -466,7 +497,7 @@ def delete_delivery_fee_from_db(fee_id):
 
 # Initialize Streamlit session state variables
 if 'stores_df' not in st.session_state:
-    st.session_state.stores_df = pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours', 'timestamp', 'normalized_name', 'normalized_address']) # Added new columns
+    st.session_state.stores_df = pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours', 'store_type', 'timestamp', 'normalized_name', 'normalized_address', 'normalized_store_type']) # Added new columns
 if 'editing_store_id' not in st.session_state:
     st.session_state.editing_store_id = None
 if 'editing_store_details' not in st.session_state:
@@ -491,25 +522,30 @@ if 'store_search_input' not in st.session_state:
     st.session_state.store_search_input = ""
 if 'store_search_query' not in st.session_state:
     st.session_state.store_search_query = "" # To hold the query when search is triggered
+if 'store_search_type' not in st.session_state: # New session state for search type filter
+    st.session_state.store_search_type = "All Stores"
 
 if 'user_lat' not in st.session_state:
     st.session_state.user_lat = None
 if 'user_lon' not in st.session_state:
     st.session_state.user_lon = None
 
+@st.cache_data(ttl=3600) # Cache for 1 hour, or until inputs change (e.g., DB file modification)
 def fetch_stores_from_db_local():
     """Fetches all stores from SQLite and updates st.session_state.stores_df."""
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
             # Fetch the new normalized columns as well
-            cursor.execute("SELECT id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, normalized_name, normalized_address, timestamp FROM stores")
+            cursor.execute("SELECT id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_type, normalized_name, normalized_address, normalized_store_type, timestamp FROM stores")
             rows = cursor.fetchall()
             cols = [description[0] for description in cursor.description]
-            st.session_state.stores_df = pd.DataFrame(rows, columns=cols)
+            return pd.DataFrame(rows, columns=cols)
     except Exception as e:
         st.error(f"Error fetching stores from database: {e}")
+        return pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours', 'store_type', 'timestamp', 'normalized_name', 'normalized_address', 'normalized_store_type'])
 
+@st.cache_data(ttl=3600) # Cache for 1 hour, or until inputs change
 def fetch_delivery_fees_from_db_local():
     """Fetches all delivery fee entries from SQLite and updates st.session_state.delivery_fees_df."""
     try:
@@ -518,9 +554,15 @@ def fetch_delivery_fees_from_db_local():
             cursor.execute("SELECT id, location, min_order_amount, delivery_charge, amount_for_free_delivery, zone, normalized_location, normalized_zone, timestamp FROM delivery_fees")
             rows = cursor.fetchall()
             cols = [description[0] for description in cursor.description]
-            st.session_state.delivery_fees_df = pd.DataFrame(rows, columns=cols)
+            return pd.DataFrame(rows, columns=cols)
     except Exception as e:
         st.error(f"Error fetching delivery fees from database: {e}")
+        return pd.DataFrame(columns=['id', 'location', 'min_order_amount', 'delivery_charge', 'amount_for_free_delivery', 'zone', 'timestamp', 'normalized_location', 'normalized_zone'])
+
+# Call the cached functions to initialize session state DataFrames
+st.session_state.stores_df = fetch_stores_from_db_local()
+st.session_state.delivery_fees_df = fetch_delivery_fees_from_db_local()
+
 
 def clear_delivery_fee_edit_state():
     """Clears the session state for editing a delivery fee.
@@ -585,8 +627,11 @@ selected_page = st.sidebar.radio(
     ["Find Store/Add/Edit", "Delivery Fee", "Price Calculator"]
 )
 
+# Define store types globally or at least consistently
+STORE_TYPES = ["All Stores", "Smart Seven", "KCC", "Other"]
+
 if selected_page == "Find Store/Add/Edit":
-    fetch_stores_from_db_local()
+    st.session_state.stores_df = fetch_stores_from_db_local() # Always get latest from cache
     st.markdown("---")
     
     # Tabs for Find Store and Add/Edit
@@ -605,6 +650,17 @@ if selected_page == "Find Store/Add/Edit":
                 value=st.session_state.store_search_input,
                 key="search_address_input_tab"
             )
+            
+            # New dropdown for store type filter
+            selected_store_type_filter = st.selectbox(
+                "Filter by Store Type",
+                options=STORE_TYPES,
+                index=STORE_TYPES.index(st.session_state.store_search_type),
+                key="store_type_filter_search"
+            )
+            # Update session state with the selected filter
+            st.session_state.store_search_type = selected_store_type_filter
+
             find_nearest_button_submitted = st.form_submit_button("Find Nearest Store")
 
         # Handle search logic when form is submitted
@@ -630,8 +686,13 @@ if selected_page == "Find Store/Add/Edit":
             nearest_store = None
             min_distance = float('inf')
 
-            if not st.session_state.stores_df.empty:
-                for index, store in st.session_state.stores_df.iterrows():
+            # Filter stores_df based on selected_store_type_filter before searching
+            filtered_stores_df = st.session_state.stores_df.copy()
+            if st.session_state.store_search_type != "All Stores":
+                filtered_stores_df = filtered_stores_df[filtered_stores_df['store_type'] == st.session_state.store_search_type]
+
+            if not filtered_stores_df.empty:
+                for index, store in filtered_stores_df.iterrows():
                     store_lat = store["latitude"]
                     store_lon = store["longitude"]
                     distance = haversine(user_lat, user_lon, store_lat, store_lon)
@@ -669,10 +730,19 @@ if selected_page == "Find Store/Add/Edit":
                     st.markdown(f"<p class='distance-text'>Hours: {str(hours_to_display).strip()}</p>", unsafe_allow_html=True)
                 else:
                     st.markdown(f"<p class='distance-text'>Hours: Not Available</p>", unsafe_allow_html=True)
+                
+                store_type_to_display = nearest_store.get('store_type')
+                if pd.notnull(store_type_to_display) and str(store_type_to_display).strip():
+                    st.markdown(f"<p class='distance-text'>Store Type: {str(store_type_to_display).strip()}</p>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<p class='distance-text'>Store Type: Not Available</p>", unsafe_allow_html=True)
 
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
-                st.warning("No stores found in the database to compare with. Please add some stores first.")
+                if st.session_state.store_search_type != "All Stores":
+                    st.warning(f"No '{st.session_state.store_search_type}' stores found in the database. Please add some or select 'All Stores'.")
+                else:
+                    st.warning("No stores found in the database to compare with. Please add some stores first.")
         else:
             st.info("Enter your location to find the nearest store.")
 
@@ -696,16 +766,18 @@ if selected_page == "Find Store/Add/Edit":
             
             # Prepare stores for map, including highlight for nearest
             stores_for_map_data = []
-            if not st.session_state.stores_df.empty:
-                for index, store in st.session_state.stores_df.iterrows():
+            
+            # Use the filtered_stores_df for map points
+            if not filtered_stores_df.empty:
+                for index, store in filtered_stores_df.iterrows():
                     color = [0, 0, 255, 160]  # Default blue for general stores
                     radius = 50
-                    description = f"{store['name']}<br/>{store['address']}"
+                    description = f"{store['name']}<br/>{store['address']}<br/>Type: {store.get('store_type', 'N/A')}"
 
                     if nearest_store is not None and store['id'] == nearest_store['id']:
                         color = [0, 255, 0, 200]  # Green for nearest
                         radius = 70
-                        description = f"Nearest: {nearest_store['name']}<br/>{nearest_store['address']}<br/>Distance: {min_distance:.2f} km"
+                        description = f"Nearest: {nearest_store['name']}<br/>{nearest_store['address']}<br/>Distance: {min_distance:.2f} km<br/>Type: {nearest_store.get('store_type', 'N/A')}"
                     
                     stores_for_map_data.append({
                         'latitude': store['latitude'],
@@ -817,6 +889,7 @@ if selected_page == "Find Store/Add/Edit":
             default_supervisor = st.session_state.editing_store_details.get('branch_supervisor', '')
             default_status = st.session_state.editing_store_details.get('store_status', '')
             default_hours = st.session_state.editing_store_details.get('store_hours', '')
+            default_store_type = st.session_state.editing_store_details.get('store_type', 'Other') # Default to 'Other'
 
             new_store_name = st.text_input("Store Name*", value=default_name, key="store_name_form")
             new_store_address = st.text_input("Store Address (e.g., 'Burj Khalifa, Dubai')*", value=default_address, key="store_address_form")
@@ -827,6 +900,11 @@ if selected_page == "Find Store/Add/Edit":
             current_status_index = store_status_options.index(default_status) if default_status in store_status_options else 0
             new_store_status = st.selectbox("Store Status*", options=store_status_options, index=current_status_index, key="store_status_form")
             new_store_hours = st.text_input("Store Hours (e.g., '9 AM - 5 PM Mon-Fri')*", value=default_hours, key="store_hours_form")
+            
+            # New selectbox for store type
+            store_type_options = [stype for stype in STORE_TYPES if stype != "All Stores"] # Exclude "All Stores" from input options
+            current_type_index = store_type_options.index(default_store_type) if default_store_type in store_type_options else store_type_options.index('Other')
+            new_store_type = st.selectbox("Store Type*", options=store_type_options, index=current_type_index, key="store_type_form")
 
             submit_button_label = "Update Store Details" if st.session_state.editing_store_id else "Add Store to Database"
             form_submitted = st.form_submit_button(submit_button_label)
@@ -849,6 +927,8 @@ if selected_page == "Find Store/Add/Edit":
                     st.error("Store Hours are required.")
                 elif not re.match(STORE_HOURS_PATTERN, new_store_hours.strip()):
                     st.error("Store Hours must be in a valid time format (e.g., '9 AM - 5 PM Mon-Fri', '09:00 - 17:00').")
+                elif not str(new_store_type).strip():
+                    st.error("Store Type is required.")
                 else: # All validations passed
                     st.info(f"Geocoding address: '{new_store_address}'...")
                     store_lat, store_lon = get_coordinates_from_address(new_store_address, google_api_key)
@@ -863,12 +943,13 @@ if selected_page == "Find Store/Add/Edit":
                                 new_store_contact.strip(),
                                 new_store_supervisor.strip(),
                                 new_store_status,
-                                new_store_hours.strip()
+                                new_store_hours.strip(),
+                                new_store_type # Pass new store type
                             ):
                                 clear_store_edit_state() # Clear edit state after successful update
                         else: # If adding new
-                            if add_store_to_db(new_store_name.strip(), new_store_address.strip(), store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip(), new_store_status, new_store_hours.strip()):
-                                fetch_stores_from_db_local() # Refresh data
+                            if add_store_to_db(new_store_name.strip(), new_store_address.strip(), store_lat, store_lon, new_store_contact.strip(), new_store_supervisor.strip(), new_store_status, new_store_hours.strip(), new_store_type): # Pass new store type
+                                st.session_state.stores_df = fetch_stores_from_db_local() # Refresh data
                                 # Form clears on submit for new add due to clear_on_submit=True
                     else:
                         st.error("Could not get coordinates. Please check the address and ensure your API key is correctly configured.")
@@ -884,7 +965,7 @@ if selected_page == "Find Store/Add/Edit":
         st.markdown("---")
         st.markdown("<h3>All Saved Stores</h3>", unsafe_allow_html=True)
         if not st.session_state.stores_df.empty:
-            cols_config = st.columns([0.5, 2, 3, 1.5, 1.5, 1.2, 2, 0.8, 0.8]) # Added column for Edit button
+            cols_config = st.columns([0.5, 2, 3, 1.5, 1.5, 1.2, 2, 1, 0.8, 0.8]) # Added column for Store Type & adjusted for buttons
 
             with cols_config[0]: st.markdown("**ID**")
             with cols_config[1]: st.markdown("**Name**")
@@ -893,13 +974,14 @@ if selected_page == "Find Store/Add/Edit":
             with cols_config[4]: st.markdown("**Supervisor**")
             with cols_config[5]: st.markdown("**Status**")
             with cols_config[6]: st.markdown("**Hours**")
-            with cols_config[7]: st.markdown("**Edit**") # Edit button header
-            with cols_config[8]: st.markdown("**Delete**") # Delete button header
+            with cols_config[7]: st.markdown("**Type**") # New header for Store Type
+            with cols_config[8]: st.markdown("**Edit**")
+            with cols_config[9]: st.markdown("**Delete**")
 
             st.markdown("---")
 
             for index, store in st.session_state.stores_df.iterrows():
-                row_cols = st.columns([0.5, 2, 3, 1.5, 1.5, 1.2, 2, 0.8, 0.8]) # Columns for data + 2 buttons
+                row_cols = st.columns([0.5, 2, 3, 1.5, 1.5, 1.2, 2, 1, 0.8, 0.8]) # Columns for data + Type + 2 buttons
                 with row_cols[0]: st.write(str(store['id']))
                 with row_cols[1]: st.write(store['name'])
                 with row_cols[2]: st.write(store['address'])
@@ -907,12 +989,13 @@ if selected_page == "Find Store/Add/Edit":
                 with row_cols[4]: st.write(str(store.get('branch_supervisor', 'N/A')))
                 with row_cols[5]: st.write(str(store.get('store_status', 'N/A')))
                 with row_cols[6]: st.write(str(store.get('store_hours', 'N/A')))
-                with row_cols[7]: # Edit button
+                with row_cols[7]: st.write(str(store.get('store_type', 'N/A'))) # Display Store Type
+                with row_cols[8]: # Edit button
                     if st.button("✏️", key=f"edit_store_{store['id']}", help=f"Edit {store['name']}", type="secondary"):
                         st.session_state.editing_store_id = store['id']
                         st.session_state.editing_store_details = store.to_dict()
                         st.rerun() # Rerun to update the form
-                with row_cols[8]: # Delete button
+                with row_cols[9]: # Delete button
                     if st.button("🗑️", key=f"delete_store_{store['id']}", help=f"Delete {store['name']}", type="secondary"):
                         # Set session state for modal to appear
                         st.session_state.delete_confirm_modal_active = True
@@ -925,7 +1008,7 @@ if selected_page == "Find Store/Add/Edit":
             st.info("No stores currently in the database. Add some using the form above!")
 
 elif selected_page == "Delivery Fee":
-    fetch_delivery_fees_from_db_local()
+    st.session_state.delivery_fees_df = fetch_delivery_fees_from_db_local() # Always get latest from cache
     st.markdown("---")
     
     # Tabs for Delivery Fee section
@@ -1051,7 +1134,7 @@ elif selected_page == "Delivery Fee":
                             new_fee_free_amount,
                             new_fee_zone.strip()
                         ):
-                            fetch_delivery_fees_from_db_local() # Refresh data
+                            st.session_state.delivery_fees_df = fetch_delivery_fees_from_db_local() # Refresh data
                             clear_delivery_fee_edit_state() # Clear state after update and rerun
                     else:
                         # Add new entry
@@ -1062,7 +1145,7 @@ elif selected_page == "Delivery Fee":
                             new_fee_free_amount,
                             new_fee_zone.strip()
                         ):
-                            fetch_delivery_fees_from_db_local() # Refresh data
+                            st.session_state.delivery_fees_df = fetch_delivery_fees_from_db_local() # Refresh data
                             clear_delivery_fee_edit_state() # Clear state after add and rerun
 
         # Place Cancel Edit button outside the form, conditionally
@@ -1105,7 +1188,7 @@ elif selected_page == "Delivery Fee":
                 with row_cols_fee[7]: # Corrected: Changed 'row_cols' to 'row_cols_fee'
                     if st.button("🗑️", key=f"delete_fee_{fee['id']}", help=f"Delete fee for {fee['location']}", type="secondary"):
                         if delete_delivery_fee_from_db(fee['id']):
-                            fetch_delivery_fees_from_db_local() # Refresh data after deletion
+                            st.session_state.delivery_fees_df = fetch_delivery_fees_from_db_local() # Refresh data after deletion
                             st.rerun()
                 st.markdown("---")
         else:
@@ -1224,7 +1307,7 @@ if st.session_state.delete_confirm_modal_active:
                         st.session_state.store_name_to_confirm_delete = None
                         st.session_state.editing_store_id = None
                         st.session_state.editing_store_details = {}
-                        fetch_stores_from_db_local()
+                        st.session_state.stores_df = fetch_stores_from_db_local() # Refresh after delete
                         st.rerun()
         with col_cancel:
             if st.button("Cancel", key="cancel_delete_final_btn", use_container_width=True, help="Cancel deletion and return"):
