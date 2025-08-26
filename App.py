@@ -7,6 +7,11 @@ import os
 import re # Import regex for normalization
 import pydeck as pdk # Import pydeck for advanced mapping
 
+# --- Critical: Clear Streamlit cache on every startup ---
+# This ensures that if the database schema changed (e.g., new columns added),
+# Streamlit fetches fresh data and doesn't rely on old cached DataFrames.
+st.cache_data.clear()
+
 # --- Regular Expressions for Validation ---
 # Basic international phone number format (allows +, digits, spaces, hyphens, parentheses, 7-20 chars)
 CONTACT_NUMBER_PATTERN = r'^\+?[0-9\s\-\(\)]{7,20}$'
@@ -536,11 +541,21 @@ def fetch_stores_from_db_local():
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
-            # Fetch the new normalized columns as well
+            # Explicitly select all columns, including the new 'store_type' and 'normalized_store_type'
             cursor.execute("SELECT id, name, address, latitude, longitude, contact_number, branch_supervisor, store_status, store_hours, store_type, normalized_name, normalized_address, normalized_store_type, timestamp FROM stores")
             rows = cursor.fetchall()
-            cols = [description[0] for description in cursor.description]
-            return pd.DataFrame(rows, columns=cols)
+            
+            # Define expected columns for robustness, ensuring 'store_type' is always present
+            expected_cols = ['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours', 'store_type', 'normalized_name', 'normalized_address', 'normalized_store_type', 'timestamp']
+            
+            df = pd.DataFrame(rows, columns=[description[0] for description in cursor.description])
+            
+            # Add missing columns with default values if they don't exist in the fetched DataFrame
+            for col in expected_cols:
+                if col not in df.columns:
+                    df[col] = None # Or a suitable default value
+            
+            return df[expected_cols] # Ensure column order and presence
     except Exception as e:
         st.error(f"Error fetching stores from database: {e}")
         return pd.DataFrame(columns=['id', 'name', 'address', 'latitude', 'longitude', 'contact_number', 'branch_supervisor', 'store_status', 'store_hours', 'store_type', 'timestamp', 'normalized_name', 'normalized_address', 'normalized_store_type'])
