@@ -1267,3 +1267,6 @@ if __name__ == "__main__":
     # Running the main content of the app is handled by the `selected_page` logic above.
     # The `main` function is just a placeholder here.
     main()
+
+# --- Footer ---
+st.markdown("<div class='footer'>Katrina Knowledge base by Jude Sepe Jr</div>", unsafe_allow_html=True)
