@@ -36,6 +36,10 @@ if not firebase_admin._apps:
 # Get a Firestore client instance
 db = firestore.client()
 
+# --- Security PIN ---
+# Define a 6-digit PIN for adding/editing records
+SECURITY_PIN = "123456"
+
 # --- Regex Patterns for Validation ---
 CONTACT_NUMBER_PATTERN = r"^\+?[0-9\s()\s-]{7,15}$"
 STORE_HOURS_PATTERN = r"^\d{1,2}(:\d{2})?\s*([AP]M)?\s*-\s*\d{1,2}(:\d{2})?\s*([AP]M)?$"
@@ -753,22 +757,7 @@ if selected_page == "Find Store/Add/Edit":
     elif selected_store_tab == "Add/Edit Stores":
         st.markdown("<div class='input-section'>", unsafe_allow_html=True) # Added div for styling
         st.markdown("<h3>Add/Edit Stores</h3>", unsafe_allow_html=True)
-
-        # New search input for the Add/Edit tab
-        with st.form("search_existing_stores_form"):
-            search_query_results = st.text_input(
-                "Search for an existing store to edit:",
-                value=st.session_state.store_results_search_query,
-                placeholder="Search by name, address, or type...",
-                key="store_results_search_query_input"
-            )
-            search_button = st.form_submit_button("Search")
-            
-        if search_button:
-            st.session_state.store_results_search_query = search_query_results
-            st.rerun()
-
-        st.markdown("---")
+        st.info("To add or edit a store, please enter the required details below.")
         
         # Determine if we're in edit mode
         is_edit_mode = st.session_state.editing_store_id is not None
@@ -796,6 +785,8 @@ if selected_page == "Find Store/Add/Edit":
                 current_store_status_index = 0 # Default to "--- Select Status ---" for new entries
             store_status = st.selectbox("Store Status", store_status_options, index=current_store_status_index, key=f"store_status_select_{st.session_state.editing_store_id}_{st.session_state.new_store_form_counter}")
             
+            store_hours = st.text_input("Store Hours (e.g., 9 AM - 10 PM)", value=st.session_state.editing_store_details.get('store_hours', '') if is_edit_mode else '', key=f"store_hours_input_{st.session_state.editing_store_id}_{st.session_state.new_store_form_counter}")
+            
             # New field for store type
             store_type_options_with_select = ["--- Select Type ---"] + STORE_TYPES[1:] # Exclude "All Stores"
             if is_edit_mode and st.session_state.editing_store_details.get('store_type') in store_type_options_with_select:
@@ -808,6 +799,13 @@ if selected_page == "Find Store/Add/Edit":
             # NEW FIELD FOR GOOGLE PIN LOCATION
             google_pin_location = st.text_input("Google PIN Location (e.g., plus code or name)", value=st.session_state.editing_store_details.get('google_pin_location', '') if is_edit_mode else '', key=f"google_pin_input_{st.session_state.editing_store_id}_{st.session_state.new_store_form_counter}")
 
+            # New PIN field for security
+            if is_edit_mode:
+                pin_label = "Enter PIN to update"
+            else:
+                pin_label = "Enter PIN to add"
+            user_pin = st.text_input(pin_label, type="password", key=f"pin_input_{st.session_state.editing_store_id}_{st.session_state.new_store_form_counter}")
+
             # Form submission buttons - arranged in columns
             col1, col2 = st.columns(2)
             with col1:
@@ -818,7 +816,9 @@ if selected_page == "Find Store/Add/Edit":
 
             # Handle form submission
             if submit_button:
-                if not name or not address:
+                if user_pin != SECURITY_PIN:
+                    st.error("Incorrect PIN. Record was not saved.")
+                elif not name or not address:
                     st.error("Store Name and Address are required.")
                 # Added validation for default selections in add mode
                 elif not is_edit_mode and store_status == "--- Select Status ---":
@@ -849,65 +849,52 @@ if selected_page == "Find Store/Add/Edit":
         # Display existing stores with edit/delete buttons
         if not st.session_state.stores_df.empty:
             
-            # --- New Filtering Logic ---
-            filtered_df = st.session_state.stores_df
-            if st.session_state.store_results_search_query:
-                normalized_query = normalize_string(st.session_state.store_results_search_query)
-                filtered_df = filtered_df[
-                    filtered_df['normalized_name'].str.contains(normalized_query, na=False) |
-                    filtered_df['normalized_address'].str.contains(normalized_query, na=False) |
-                    filtered_df['normalized_store_type'].str.contains(normalized_query, na=False)
-                ]
+            stores_df_sorted = st.session_state.stores_df.sort_values(by='name')
+            
+            # Adjusted columns to include the new field
+            header_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
+            with header_cols[0]: st.markdown("<strong>ID</strong>", unsafe_allow_html=True)
+            with header_cols[1]: st.markdown("<strong>Name</strong>", unsafe_allow_html=True)
+            with header_cols[2]: st.markdown("<strong>Address</strong>", unsafe_allow_html=True)
+            with header_cols[3]: st.markdown("<strong>Contact</strong>", unsafe_allow_html=True)
+            with header_cols[4]: st.markdown("<strong>Supervisor</strong>", unsafe_allow_html=True)
+            with header_cols[5]: st.markdown("<strong>Status</strong>", unsafe_allow_html=True)
+            with header_cols[6]: st.markdown("<strong>Hours</strong>", unsafe_allow_html=True)
+            with header_cols[7]: st.markdown("<strong>PIN</strong>", unsafe_allow_html=True)
+            with header_cols[8]: st.markdown("<strong>Actions</strong>", unsafe_allow_html=True)
+            st.markdown("---")
 
-            if not filtered_df.empty:
-                stores_df_sorted = filtered_df.sort_values(by='name')
-                
+            for index, row in stores_df_sorted.iterrows():
                 # Adjusted columns to include the new field
-                header_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
-                with header_cols[0]: st.markdown("<strong>ID</strong>", unsafe_allow_html=True)
-                with header_cols[1]: st.markdown("<strong>Name</strong>", unsafe_allow_html=True)
-                with header_cols[2]: st.markdown("<strong>Address</strong>", unsafe_allow_html=True)
-                with header_cols[3]: st.markdown("<strong>Contact</strong>", unsafe_allow_html=True)
-                with header_cols[4]: st.markdown("<strong>Supervisor</strong>", unsafe_allow_html=True)
-                with header_cols[5]: st.markdown("<strong>Status</strong>", unsafe_allow_html=True)
-                with header_cols[6]: st.markdown("<strong>Hours</strong>", unsafe_allow_html=True)
-                with header_cols[7]: st.markdown("<strong>PIN</strong>", unsafe_allow_html=True)
-                with header_cols[8]: st.markdown("<strong>Actions</strong>", unsafe_allow_html=True)
-                st.markdown("---")
-
-                for index, row in stores_df_sorted.iterrows():
-                    # Adjusted columns to include the new field
-                    row_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
-                    with row_cols[0]: st.write(row['id'])
-                    with row_cols[1]: st.write(row['name'])
-                    with row_cols[2]: st.write(row['address'])
-                    with row_cols[3]: st.write(row['contact_number'] if row['contact_number'] else '-')
-                    with row_cols[4]: st.write(row['branch_supervisor'] if row['branch_supervisor'] else '-')
-                    with row_cols[5]: st.write(row['store_status'] if row['store_status'] else '-')
-                    with row_cols[6]: st.write(row['store_hours'] if row['store_hours'] else '-')
-                    with row_cols[7]: st.write(row['google_pin_location'] if 'google_pin_location' in row and row['google_pin_location'] else '-')
-                    with row_cols[8]:
-                        edit_button_col, delete_button_col = st.columns(2)
-                        with edit_button_col:
-                            st.button(
-                                "✏️", 
-                                key=f"edit_store_add_edit_{row['id']}", # Unique key for this tab's button
-                                help="Edit this store",
-                                on_click=set_edit_store_state,
-                                args=(row['id'],)
-                            )
-                        with delete_button_col:
-                            # Removed the modal logic. Now directly calls delete_and_rerun_store
-                            st.button(
-                                "🗑️", 
-                                key=f"delete_store_add_edit_{row['id']}", # Unique key for this tab's button
-                                help="Delete this store",
-                                on_click=delete_and_rerun_store,
-                                args=(row['id'],)
-                            )
-                st.markdown("---")
-            else:
-                st.info("No stores found matching your search criteria. Please try a different search term.")
+                row_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
+                with row_cols[0]: st.write(row['id'])
+                with row_cols[1]: st.write(row['name'])
+                with row_cols[2]: st.write(row['address'])
+                with row_cols[3]: st.write(row['contact_number'] if row['contact_number'] else '-')
+                with row_cols[4]: st.write(row['branch_supervisor'] if row['branch_supervisor'] else '-')
+                with row_cols[5]: st.write(row['store_status'] if row['store_status'] else '-')
+                with row_cols[6]: st.write(row['store_hours'] if row['store_hours'] else '-')
+                with row_cols[7]: st.write(row['google_pin_location'] if 'google_pin_location' in row and row['google_pin_location'] else '-')
+                with row_cols[8]:
+                    edit_button_col, delete_button_col = st.columns(2)
+                    with edit_button_col:
+                        st.button(
+                            "✏️", 
+                            key=f"edit_store_add_edit_{row['id']}", # Unique key for this tab's button
+                            help="Edit this store",
+                            on_click=set_edit_store_state,
+                            args=(row['id'],)
+                        )
+                    with delete_button_col:
+                        # Removed the modal logic. Now directly calls delete_and_rerun_store
+                        st.button(
+                            "🗑️", 
+                            key=f"delete_store_add_edit_{row['id']}", # Unique key for this tab's button
+                            help="Delete this store",
+                            on_click=delete_and_rerun_store,
+                            args=(row['id'],)
+                        )
+            st.markdown("---")
         else:
             st.info("No store entries yet. Add one using the form above!")
         
@@ -1007,6 +994,13 @@ elif selected_page == "Delivery Fee":
             delivery_charge = st.number_input("Delivery Charge (AED)", min_value=0.0, value=st.session_state.editing_delivery_fee_details.get('delivery_charge', 0.0) if is_edit_mode else 0.0, step=1.0, key="delivery_charge_input")
             amount_for_free_delivery = st.number_input("Amount for Free Delivery (AED, Optional)", min_value=0.0, value=st.session_state.editing_delivery_fee_details.get('amount_for_free_delivery', 0.0) if is_edit_mode else 0.0, step=1.0, key="free_delivery_input")
             
+            # New PIN field for security
+            if is_edit_mode:
+                pin_label = "Enter PIN to update"
+            else:
+                pin_label = "Enter PIN to add"
+            user_pin = st.text_input(pin_label, type="password", key=f"pin_input_fee_{st.session_state.editing_delivery_fee_id}")
+
             # Adjusted columns to bring buttons closer
             button_col1, button_col2, _ = st.columns([0.2, 0.2, 0.6]) 
             with button_col1:
@@ -1016,7 +1010,9 @@ elif selected_page == "Delivery Fee":
                     cancel_button = st.form_submit_button(label="Cancel Edit", on_click=clear_delivery_fee_edit_state) 
             
             if submit_button:
-                if not location:
+                if user_pin != SECURITY_PIN:
+                    st.error("Incorrect PIN. Record was not saved.")
+                elif not location:
                     st.error("Location/City is a required field.")
                 else:
                     if is_edit_mode:
