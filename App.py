@@ -568,7 +568,12 @@ except KeyError:
 
 
 # --- Sidebar Navigation ---
-st.sidebar.markdown("## Navigation")
+st.sidebar.markdown(
+    "<h3 style='color: DarkPink; text-align: center;'>🎂 Katrina Coffee and Cakes 🎂</h3>",
+    unsafe_allow_html=True
+)
+st.sidebar.markdown("---")
+
 selected_page = st.sidebar.radio(
     "Go to",
     ["Find Store/Add/Edit", "Delivery Fee", "Price Calculator", "General Info"]
@@ -587,6 +592,7 @@ if selected_page == "Find Store/Add/Edit":
     def on_store_radio_change():
         st.session_state.selected_store_tab = st.session_state.store_tab_selector_widget
 
+    # FIX: The widget now directly returns the value, and we store it in session state.
     selected_store_tab = st.radio(
         "Select a section:",
         store_tab_options,
@@ -653,37 +659,41 @@ if selected_page == "Find Store/Add/Edit":
                         axis=1
                     )
                     
-                    # Find the nearest store
-                    nearest_store = filtered_stores.loc[filtered_stores['distance_km'].idxmin()]
+                    # Sort by distance and get the top 3 stores
+                    top_three_stores = filtered_stores.sort_values(by='distance_km').head(3)
                     
                     st.subheader("Search Results")
-                    st.info(f"The nearest store is **{nearest_store['name']}** in **{nearest_store['address']}**, approximately **{nearest_store['distance_km']:.2f} km** away.")
+                    
+                    # Display details for each of the top 3 stores
+                    for index, nearest_store in top_three_stores.iterrows():
+                        st.markdown(f"---")
+                        st.info(f"**{nearest_store['name']}** in **{nearest_store['address']}**, approximately **{nearest_store['distance_km']:.2f} km** away.")
 
-                    # Get route polyline and travel time
-                    route_polyline, travel_time_text = get_route_details(st.session_state.user_lat, st.session_state.user_lon, nearest_store['latitude'], nearest_store['longitude'], google_api_key)
-                    
-                    if travel_time_text:
-                        st.info(f"Estimated travel time: **{travel_time_text}**")
-                    else:
-                        st.warning("Could not retrieve route details (e.g., travel time). The locations might be too close or the Google Directions API had an issue.")
-                    
-                    st.markdown("---")
-                    st.subheader(f"Details for {nearest_store['name']}")
-                    st.write(f"**Address:** {nearest_store['address']}")
-                    st.write(f"**Google PIN Location:** {nearest_store.get('google_pin_location', 'N/A')}")
-                    st.write(f"**Branch Supervisor:** {nearest_store.get('branch_supervisor', 'N/A')}")
-                    st.write(f"**Contact Number:** {nearest_store.get('contact_number', 'N/A')}")
-                    st.write(f"**Store Status:** {nearest_store.get('store_status', 'N/A')}")
-                    st.write(f"**Store Hours:** {nearest_store.get('store_hours', 'N/A')}")
+                        # Get route polyline and travel time
+                        route_polyline, travel_time_text = get_route_details(st.session_state.user_lat, st.session_state.user_lon, nearest_store['latitude'], nearest_store['longitude'], google_api_key)
+                        
+                        if travel_time_text:
+                            st.info(f"Estimated travel time: **{travel_time_text}**")
+                        else:
+                            st.warning("Could not retrieve route details (e.g., travel time). The locations might be too close or the Google Directions API had an issue.")
+                        
+                        st.markdown("---")
+                        st.subheader(f"Details for {nearest_store['name']}")
+                        st.write(f"**Address:** {nearest_store['address']}")
+                        st.write(f"**Google PIN Location:** {nearest_store.get('google_pin_location', 'N/A')}")
+                        st.write(f"**Branch Supervisor:** {nearest_store.get('branch_supervisor', 'N/A')}")
+                        st.write(f"**Contact Number:** {nearest_store.get('contact_number', 'N/A')}")
+                        st.write(f"**Store Status:** {nearest_store.get('store_status', 'N/A')}")
+                        st.write(f"**Store Hours:** {nearest_store.get('store_hours', 'N/A')}")
 
 
                     # Create a DataFrame for the map
-                    map_df = filtered_stores.rename(columns={'latitude': 'lat', 'longitude': 'lon'})
-                    map_df['icon_data'] = [
+                    map_data = top_three_stores.rename(columns={'latitude': 'lat', 'longitude': 'lon'})
+                    map_data['icon_data'] = [
                         {"path": "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z", 
-                         "fill_color": [255, 0, 0] if row['id'] == nearest_store['id'] else [0, 128, 0], # Use ID for comparison
+                         "fill_color": [255, 0, 0] if i == 0 else [0, 128, 0], # Use index for highlighting the nearest
                          "stroke_width": 0, "fill_opacity": 1.0, "scale": 100} # Increased scale
-                        for index, row in map_df.iterrows()
+                        for i, (index, row) in enumerate(map_data.iterrows())
                     ]
                     
                     # Add user's location to the map data
@@ -695,7 +705,7 @@ if selected_page == "Find Store/Add/Edit":
                         'icon_data': {"path": "M20.94 11c-.46-4.17-3.37-7.6-7.14-9.35C13.43 1.25 12.72 1 12 1c-.72 0-1.43.25-1.8.65-3.77 1.75-6.68 5.18-7.14 9.35H2v2h2.06c.46 4.17 3.37 7.6 7.14 9.35.37.18.78.29 1.2.35V24h2v-1.65c.42-.06.83-.17 1.2-.35 3.77-1.75 6.68-5.18 7.14-9.35H22v-2h-1.06zm-8.88 9.35c-2.91-1.47-5.1-4.08-5.78-7.35h11.55c-.68 3.27-2.87 5.88-5.77 7.35z", "fill_color": [0, 0, 255], "stroke_width": 0, "fill_opacity": 1.0, "scale": 100} # Increased scale
                     }])
                     
-                    map_data = pd.concat([map_df, user_location_df], ignore_index=True)
+                    map_data = pd.concat([map_data, user_location_df], ignore_index=True)
 
                     # Create a pydeck map
                     view_state = pdk.ViewState(
@@ -707,18 +717,20 @@ if selected_page == "Find Store/Add/Edit":
 
                     layers = []
                     
-                    # Add Route Layer - only if valid polyline exists and is long enough
-                    if route_polyline and len(route_polyline) > 1: 
-                         route_layer = pdk.Layer(
-                             "PathLayer",
-                             data=[{"path": route_polyline}],
-                             get_path="path",
-                             get_color=[255, 255, 0],  # Explicitly set color to bright yellow (RGBA)
-                             width_min_pixels=12,      # Explicitly set width
-                             pickable=True,
-                             auto_highlight=True
-                         )
-                         layers.append(route_layer)
+                    # Add Route Layer for each of the top 3 stores
+                    for index, store in top_three_stores.iterrows():
+                        route_polyline, _ = get_route_details(st.session_state.user_lat, st.session_state.user_lon, store['latitude'], store['longitude'], google_api_key)
+                        if route_polyline and len(route_polyline) > 1:
+                            route_layer = pdk.Layer(
+                                 "PathLayer",
+                                 data=[{"path": route_polyline}],
+                                 get_path="path",
+                                 get_color=[255, 255, 0],  # Yellow routes
+                                 width_min_pixels=6,
+                                 pickable=True,
+                                 auto_highlight=True
+                             )
+                            layers.append(route_layer)
                              
                     # Add Icon Layer for Stores and User Location
                     icon_layer = pdk.Layer(
@@ -758,6 +770,15 @@ if selected_page == "Find Store/Add/Edit":
         st.markdown("<div class='input-section'>", unsafe_allow_html=True) # Added div for styling
         st.markdown("<h3>Add/Edit Stores</h3>", unsafe_allow_html=True)
         st.info("To add or edit a store, please enter the required details below.")
+
+        # Display the search bar
+        st.text_input(
+            "Search for an existing store to edit:",
+            placeholder="Search by name, address, or type...",
+            key="store_results_search_query"
+        )
+        
+        st.markdown("---")
         
         # Determine if we're in edit mode
         is_edit_mode = st.session_state.editing_store_id is not None
@@ -849,52 +870,65 @@ if selected_page == "Find Store/Add/Edit":
         # Display existing stores with edit/delete buttons
         if not st.session_state.stores_df.empty:
             
-            stores_df_sorted = st.session_state.stores_df.sort_values(by='name')
-            
-            # Adjusted columns to include the new field
-            header_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
-            with header_cols[0]: st.markdown("<strong>ID</strong>", unsafe_allow_html=True)
-            with header_cols[1]: st.markdown("<strong>Name</strong>", unsafe_allow_html=True)
-            with header_cols[2]: st.markdown("<strong>Address</strong>", unsafe_allow_html=True)
-            with header_cols[3]: st.markdown("<strong>Contact</strong>", unsafe_allow_html=True)
-            with header_cols[4]: st.markdown("<strong>Supervisor</strong>", unsafe_allow_html=True)
-            with header_cols[5]: st.markdown("<strong>Status</strong>", unsafe_allow_html=True)
-            with header_cols[6]: st.markdown("<strong>Hours</strong>", unsafe_allow_html=True)
-            with header_cols[7]: st.markdown("<strong>PIN</strong>", unsafe_allow_html=True)
-            with header_cols[8]: st.markdown("<strong>Actions</strong>", unsafe_allow_html=True)
-            st.markdown("---")
+            # --- New Filtering Logic ---
+            filtered_df = st.session_state.stores_df
+            if st.session_state.store_results_search_query:
+                normalized_query = normalize_string(st.session_state.store_results_search_query)
+                filtered_df = filtered_df[
+                    filtered_df['normalized_name'].str.contains(normalized_query, na=False) |
+                    filtered_df['normalized_address'].str.contains(normalized_query, na=False) |
+                    filtered_df['normalized_store_type'].str.contains(normalized_query, na=False)
+                ]
 
-            for index, row in stores_df_sorted.iterrows():
+            if not filtered_df.empty:
+                stores_df_sorted = filtered_df.sort_values(by='name')
+                
                 # Adjusted columns to include the new field
-                row_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
-                with row_cols[0]: st.write(row['id'])
-                with row_cols[1]: st.write(row['name'])
-                with row_cols[2]: st.write(row['address'])
-                with row_cols[3]: st.write(row['contact_number'] if row['contact_number'] else '-')
-                with row_cols[4]: st.write(row['branch_supervisor'] if row['branch_supervisor'] else '-')
-                with row_cols[5]: st.write(row['store_status'] if row['store_status'] else '-')
-                with row_cols[6]: st.write(row['store_hours'] if row['store_hours'] else '-')
-                with row_cols[7]: st.write(row['google_pin_location'] if 'google_pin_location' in row and row['google_pin_location'] else '-')
-                with row_cols[8]:
-                    edit_button_col, delete_button_col = st.columns(2)
-                    with edit_button_col:
-                        st.button(
-                            "✏️", 
-                            key=f"edit_store_add_edit_{row['id']}", # Unique key for this tab's button
-                            help="Edit this store",
-                            on_click=set_edit_store_state,
-                            args=(row['id'],)
-                        )
-                    with delete_button_col:
-                        # Removed the modal logic. Now directly calls delete_and_rerun_store
-                        st.button(
-                            "🗑️", 
-                            key=f"delete_store_add_edit_{row['id']}", # Unique key for this tab's button
-                            help="Delete this store",
-                            on_click=delete_and_rerun_store,
-                            args=(row['id'],)
-                        )
-            st.markdown("---")
+                header_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
+                with header_cols[0]: st.markdown("<strong>ID</strong>", unsafe_allow_html=True)
+                with header_cols[1]: st.markdown("<strong>Name</strong>", unsafe_allow_html=True)
+                with header_cols[2]: st.markdown("<strong>Address</strong>", unsafe_allow_html=True)
+                with header_cols[3]: st.markdown("<strong>Contact</strong>", unsafe_allow_html=True)
+                with header_cols[4]: st.markdown("<strong>Supervisor</strong>", unsafe_allow_html=True)
+                with header_cols[5]: st.markdown("<strong>Status</strong>", unsafe_allow_html=True)
+                with header_cols[6]: st.markdown("<strong>Hours</strong>", unsafe_allow_html=True)
+                with header_cols[7]: st.markdown("<strong>PIN</strong>", unsafe_allow_html=True)
+                with header_cols[8]: st.markdown("<strong>Actions</strong>", unsafe_allow_html=True)
+                st.markdown("---")
+
+                for index, row in stores_df_sorted.iterrows():
+                    # Adjusted columns to include the new field
+                    row_cols = st.columns([0.5, 1.5, 2, 1.5, 1.5, 1, 1, 1, 1.5])
+                    with row_cols[0]: st.write(row['id'])
+                    with row_cols[1]: st.write(row['name'])
+                    with row_cols[2]: st.write(row['address'])
+                    with row_cols[3]: st.write(row['contact_number'] if row['contact_number'] else '-')
+                    with row_cols[4]: st.write(row['branch_supervisor'] if row['branch_supervisor'] else '-')
+                    with row_cols[5]: st.write(row['store_status'] if row['store_status'] else '-')
+                    with row_cols[6]: st.write(row['store_hours'] if row['store_hours'] else '-')
+                    with row_cols[7]: st.write(row['google_pin_location'] if 'google_pin_location' in row and row['google_pin_location'] else '-')
+                    with row_cols[8]:
+                        edit_button_col, delete_button_col = st.columns(2)
+                        with edit_button_col:
+                            st.button(
+                                "✏️", 
+                                key=f"edit_store_add_edit_{row['id']}", # Unique key for this tab's button
+                                help="Edit this store",
+                                on_click=set_edit_store_state,
+                                args=(row['id'],)
+                            )
+                        with delete_button_col:
+                            # Removed the modal logic. Now directly calls delete_and_rerun_store
+                            st.button(
+                                "🗑️", 
+                                key=f"delete_store_add_edit_{row['id']}", # Unique key for this tab's button
+                                help="Delete this store",
+                                on_click=delete_and_rerun_store,
+                                args=(row['id'],)
+                            )
+                st.markdown("---")
+            else:
+                st.info("No stores found matching your search criteria. Please try a different search term.")
         else:
             st.info("No store entries yet. Add one using the form above!")
         
